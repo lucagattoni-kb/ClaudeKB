@@ -90,7 +90,8 @@ vX.Y.Z gh:… `), never from a local path — relative `_src_path` breaks
 ```
 kb-<name>/
 ├── .copier-answers.yml         # BP-owned, machine-updated: blueprint version
-│                               # (_commit) + answers. The §4 version manifest.
+│                               # (_commit) + answers — the REQUIREMENTS §4
+│                               # version manifest.
 ├── kb.yml                      # KB-owned identity manifest (§5.3)
 ├── CLAUDE.md                   # BP-owned agent contract (§9); imports ↓
 ├── CLAUDE-KB.md                # KB-owned specifics (topic, page types, vocab
@@ -101,7 +102,7 @@ kb-<name>/
 │   ├── assets/                 # in-repo media (§5.6); seeded w/ .gitkeep
 │   └── public/                 # world-readable subtree (D7); seeded with a
 │                               # placeholder page (git can't track empty dirs)
-├── nav.yml                     # KB-owned curated nav (F5.4)
+├── nav.yml                     # KB-owned curated nav w/ glob sections (§6.2)
 ├── vocab.yml                   # KB-owned controlled vocabulary (§5.2)
 ├── config/
 │   └── site-base.yml           # BP-owned SSG config base (§6.2)
@@ -112,7 +113,7 @@ kb-<name>/
 ├── uv.lock                     # generated at scaffold (copier task), then
 │                               # updated only by blueprint upgrades
 ├── wrangler.jsonc              # BP-owned deploy config (§7)
-├── .markdownlint.yml           # BP-owned tuned lint rules (F7.1)
+├── pymarkdown.json             # BP-owned tuned lint rules (F7.1; §6.1)
 ├── .gitattributes              # BP-owned: `docs/log.md merge=union` (E3)
 ├── .gitignore                  # BP-owned: `.build/`, `.venv/`
 └── blueprint-checksums.json    # BP-owned boundary manifest (§8)
@@ -182,6 +183,10 @@ url: https://kb-<kb_name>.example.com
 visibility: private        # private | public — drives Access playbook
 ```
 
+`kbtool check` asserts internal consistency of the triple {`kb.yml:name`,
+`kb.yml:url`, `wrangler.jsonc` worker name + route pattern} — the three
+places the slug appears cannot drift.
+
 Future fleet consumers (unified search/portal, F8.1) read `kb.yml` +
 `.copier-answers.yml`; nothing else is promised to them.
 
@@ -195,19 +200,34 @@ Entry format (self-contained block, tolerant of blank-line collapse):
 One-line-or-few summary. Optional links.
 ```
 
-Validator (append-only check, precise baseline): the working-tree `log.md`
+Validator (append-only check, precise semantics): the working-tree `log.md`
 must have `git show HEAD:docs/log.md` as a prefix (modulo trailing
-whitespace). Run after any rebase, this holds for legitimate appends — union
-merge places concurrent entries after the common base **[verified E3]** —
-and fails on mid-file edits, where union merge could otherwise corrupt
-silently. New file (no HEAD version) passes trivially.
+whitespace); new file (no HEAD version) passes trivially. The check runs
+pre-commit (the §9 ritual runs `kbtool check` before committing), so **every
+individual commit's log change is append-only vs its parent** — and since
+union merge preserves append-only inputs **[verified E3]**, append-only-ness
+holds inductively across concurrent sessions. What the check cannot catch:
+an agent that edits mid-file *and* commits without running `kbtool check`
+(contract violation); the deploy-gate re-run then sees working tree == HEAD
+and passes vacuously. Accepted residual risk — the damage is a garbled log,
+not lost content, and git history retains every prior state.
 
 ### 5.5 Public split (D7)
 
-`docs/public/**` is the only world-readable subtree. Structural consequences
-enforced by validators: search index and sitemap stay at site root (private);
-pages under `/public/` must not intra-link to private pages (broken for
-anonymous readers) — warning, not error. Moving a page across the boundary
+`docs/public/**` is the only world-readable subtree. The search index and
+sitemap live at the site root and are therefore private automatically (no
+validator needed — placement is structural). Validator-enforced: pages under
+`/public/` must not intra-link to private pages (broken for anonymous
+readers) — warning, not error.
+
+**Known information leak, accepted for v1**: the SSG renders one global nav
+into every page, so public pages expose the *titles* (not content) of
+private pages and sections to anonymous readers. No cheap structural fix
+exists while public pages share the site build (a split build is the real
+fix — backlog). Consequence for authors, stated in CLAUDE.md: private page
+titles must not themselves be sensitive. Listed in §15.
+
+Moving a page across the boundary
 requires a redirect entry in `_redirects` (Workers static assets, 2,000
 static redirects on free plan **[verified: platform limits]**); the lint
 playbook checks for orphaned inbound links on moves.
@@ -220,7 +240,8 @@ unaffected.
 
 ### 5.6 Media (in-repo images)
 
-Images live under `docs/assets/<page-slug>/…` and are referenced with the
+Images live under `docs/assets/<path-of-owning-page>/…` (mirroring the
+owning page's path prevents slug collisions) and are referenced with the
 same bundle-root-absolute form (`/assets/alpha/diagram.png`); the
 preprocessor rewrites them identically (asset paths keep their extension —
 the §5.2 `.md` mapping applies only to `.md` targets). Soft limit 2 MiB per
@@ -238,7 +259,7 @@ SSG is invoked only as the last step of `build`.
 
 | Command | What it does | Exit ≠ 0 when |
 |---|---|---|
-| `kbtool check` | All validators: frontmatter schema + vocab; intra-KB link targets exist (including kb:// syntax shape); index reachability (every content page reachable from `docs/index.md` — kills orphans, F3.4); log append-only (§5.4); boundary checksums (§8); markdownlint (invoked as subprocess); nav.yml entries exist | any validator fails |
+| `kbtool check` | All validators: frontmatter schema + vocab; intra-KB link targets exist (including kb:// syntax shape); index reachability (every content page reachable from `docs/index.md` — kills orphans, F3.4); log append-only (§5.4); boundary checksums (§8); slug-consistency triple (§5.3); Markdown lint via **PyMarkdown** (`pymarkdown` — Python/uv, keeps the toolchain Node-free; tuned `pymarkdown.json`, rule parity with the GitLab-mined set **[verify-at-impl]**); nav.yml entries and globs resolve to existing files | any validator fails |
 | `kbtool build` | `check` → preprocess (§6.2) → `zensical build -f .build/mkdocs.yml -s` → post-build assertions (search index exists; `_redirects` copied) | any step fails |
 | `kbtool serve` | preprocess → `zensical serve` on `.build/` | — |
 | `kbtool push` | `git pull --rebase --autostash` → `git push`, retried ×3 with backoff (D5 rebase-retry) | push still rejected |
@@ -252,23 +273,33 @@ SSG is invoked only as the last step of `build`.
    root-absolute `/a/b.md` → correct relative path. Content on disk stays
    logical; any SSG can consume the output **[verified E1 rationale]**.
 3. Inject per-page footer line `*Last updated: <date> · from git history*`
-   using `git log -1 --format=%as -- <file>` (D6; build-time timestamp
-   injection satisfies OKF `timestamp` recommendation, F2.4).
+   (appended as a `\n\n---\n` separated block) using
+   `git log -1 --format=%as -- docs/<original-path>` — always the original
+   source path, never the `.build/` copy (D6; build-time timestamp injection
+   satisfies OKF `timestamp` recommendation, F2.4).
    **Shallow-clone guard**: if `git rev-parse --is-shallow-repository` is
    true (CI clones may be shallow **[verify-at-impl]** for Workers Builds),
    dates would be silently wrong — the preprocessor must then either
    `git fetch --unshallow` (preferred, if the build environment allows) or
    omit the footer for that build. Never emit a date derived from a shallow
    history.
-4. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
+4. Expand `nav.yml` into an explicit nav tree — this is how the "hybrid
+   navigation" requirement (REQUIREMENTS §3) is met without SSG nav plugins:
+   `nav.yml` entries are either explicit (`- Home: index.md`) or glob
+   sections (`- Concepts: {glob: "concepts/**.md", sort: title}`), and the
+   generator expands globs to alphabetized explicit lists at build time.
+   With the nav always complete, `validation.nav.omitted_files` can stay
+   fatal-in-strict — a page missing from both nav and any glob is a build
+   failure, closing the curated-vs-actual drift hole.
+5. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
    theme, markdown extensions incl. Mermaid superfences, strict validation
-   flags, search) + `nav` from `nav.yml` (KB-owned) + `site_name`/`site_url`
-   from `kb.yml`, plus explicit `docs_dir: docs` and `site_dir: site`
-   (both relative to the generated file's location, i.e. `.build/docs` and
-   `.build/site`). Zensical accepts `-f <path>` **[verified E1 --help]**;
-   that it honors `docs_dir`/`site_dir` overrides is **[verify-at-impl]**
-   (E1 used defaults only). This generated-config approach eliminates the
-   mixed-ownership `mkdocs.yml` (F4.2).
+   flags, search) + the expanded nav + `site_name`/`site_url` from `kb.yml`,
+   plus explicit `docs_dir: docs` and `site_dir: site` (both relative to the
+   generated file's location, i.e. `.build/docs` and `.build/site`).
+   Zensical accepts `-f <path>` **[verified E1 --help]**; that it honors
+   `docs_dir`/`site_dir` overrides is **[verify-at-impl]** (E1 used defaults
+   only). This generated-config approach eliminates the mixed-ownership
+   `mkdocs.yml` (F4.2).
 
 ### 6.3 SSG pinning and fallback (D14)
 
@@ -317,12 +348,16 @@ a no-PR flow.
 
 `blueprint-checksums.json` is generated at blueprint release time and shipped
 in the template. It lists sha256 for **static** blueprint-owned files
-(`tools/**`, `schema/**`, `config/site-base.yml`, `.markdownlint.yml`,
-`.gitattributes`). Files whose rendered content varies per KB
-(`wrangler.jsonc`, `pyproject.toml`, `CLAUDE.md`) instead carry a first-line
-marker `# MANAGED BY BLUEPRINT vX.Y.Z — do not edit` whose presence and
-version `kbtool check` asserts. Residual drift in templated files is caught
-as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
+(`tools/**`, `schema/**`, `config/site-base.yml`, `pymarkdown.json`,
+`.gitattributes`, `CLAUDE.md` — the agent contract is deliberately written
+KB-agnostic so it stays static and checksummable; KB specifics live in
+`CLAUDE-KB.md`). Files whose rendered content varies per KB
+(`wrangler.jsonc`, `pyproject.toml`) instead carry a first-line managed
+marker — `// MANAGED BY BLUEPRINT vX.Y.Z — do not edit` in JSONC,
+`# MANAGED BY BLUEPRINT vX.Y.Z — do not edit` in TOML/YAML — whose presence
+and version `kbtool check` asserts. Residual drift in templated files is
+caught as conflicts at the next `copier update` **[verified E2]** — accepted
+for v1.
 
 ## 9. The CLAUDE.md pair (F3.1)
 
@@ -342,18 +377,21 @@ as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
 **One-time prerequisites** (first scaffold only): create the GitHub org
 (D1); transfer `ClaudeKB` (this repo) into it — one home for the whole
 fleet, GitHub auto-redirects the old URL, and the Workers Builds GitHub app
-then scopes to a single org; install/authorize that app for the org.
+then scopes to a single org; install/authorize that app for the org;
+complete Cloudflare Zero Trust onboarding (pick the team name — required
+once before any Access app can exist).
 
 1. `gh repo create <org>/kb-<name> --private` (org per D1).
 2. `uvx copier copy --vcs-ref v<X.Y.Z> gh:<org>/ClaudeKB kb-<name>` —
    answers: slug, title, description.
-3. Copier post-task: `uv lock` (creates `uv.lock`), `git init -b main`,
+3. Copier post-tasks: `uv lock` (creates `uv.lock`), `git init -b main` +
    initial commit.
 4. `uv run kbtool check && uv run kbtool build` locally — must pass before
-   any remote exists.
-5. Push; connect Workers Builds to the repo (dashboard; **[docs]** GitHub app
-   flow) with §7 settings; first deploy creates the custom domain + DNS
-   record automatically (**[docs]** `custom_domain: true`).
+   the first push.
+5. `git remote add origin … && uv run kbtool push`; connect Workers Builds
+   to the repo (dashboard; **[docs]** GitHub app flow) with §7 settings;
+   first deploy creates the custom domain + DNS record automatically
+   (**[docs]** `custom_domain: true`).
 6. Run `playbooks/access-dns-setup.md`:
    a. Access app "kb-<name>" — domain `kb-<name>.example.com`, policy
       Allow, include: Luca's email; IdP: one-time PIN (default).
@@ -399,10 +437,12 @@ On PR + main push (budget: well under D1's 2,000 min/mo — one small job):
    inside the fixture first** (mid-development checksums are legitimately
    stale between releases), then run `uv run kbtool ci` — the scaffold must
    always produce a green KB (F4.5).
-2. Upgrade test: scaffold a second fixture from the **latest release tag**,
-   then `copier update --vcs-ref <CI HEAD sha>` (a sha is a valid ref;
-   copier updates between any two template refs); assert zero conflicts and
-   green `kbtool ci` — guarantees released upgrades don't break clean KBs.
+2. Upgrade test: scaffold a second fixture from the **latest release tag**
+   (template source = the runner's absolute checkout path — absolute local
+   paths work for update, relative ones don't **[verified E2]**), then
+   `copier update --vcs-ref <CI HEAD sha>` (a sha is a valid ref; copier
+   updates between any two template refs); assert zero conflicts and green
+   `kbtool ci` — guarantees released upgrades don't break clean KBs.
 3. Release procedure (ordered, breaking the checksum circularity): finalize
    CHANGELOG entry (timestamped, breaking/non-breaking separated) →
    regenerate `blueprint-checksums.json` from the template → commit → tag
@@ -441,6 +481,7 @@ produces zero conflicts.
 | Zensical 0.0.x churn breaks a build | when | version pin; upgrades only via blueprint releases tested by §12; Material fallback (§6.3) |
 | Workers Builds image lacks uv | if | §7 verify-at-impl; installer prepend is the known fallback |
 | Access misconfig exposes private content | if | §10.6c live checklist is a launch gate per KB; `visibility` in kb.yml drives the playbook; search/sitemap stay behind Access (§5.5) |
+| Public pages leak private page *titles* via global nav | accepted | documented in §5.5 + CLAUDE.md rule (titles must not be sensitive); split build is the backlog fix |
 | Agent violates boundary/conventions | when | §8 validator + CLAUDE.md contract + E2's recurring-conflict pain surfacing at upgrade |
 | log.md union-merge corruption via mid-file edit | if | append-only validator (§5.4) fails the gate before damage lands |
 | Blueprint upgrade breaks all KBs at once | if | §12 upgrade test on every release; per-KB independent upgrades allow halting after the first bad one |
@@ -462,3 +503,16 @@ produces zero conflicts.
   path-precedence assumption tagged as probe #2; release ordering made
   explicit; success-criterion wording (manual dashboard steps vs file
   edits); `_migrations` v1 status noted.
+- pass 2 (20260712 11:47): 6 MEDIUM, 8 LOW — all fixed. M: hybrid-nav vs
+  strict `omitted_files` conflict resolved via nav.yml glob-expansion DSL;
+  log append-only semantics made precise (pre-commit baseline, inductive
+  guarantee, stated residual risk); public pages leak private titles via
+  global nav — surfaced as accepted v1 risk + CLAUDE.md authoring rule;
+  markdownlint (Node) replaced with PyMarkdown (uv-native, parity
+  verify-at-impl); Zero Trust one-time onboarding added to prerequisites;
+  slug-consistency triple validator added. L: REQUIREMENTS-§4 reference
+  disambiguated; footer git-log path pinned to original source; managed
+  markers per file syntax; CLAUDE.md made static + checksummed; scaffold
+  remote/push sequencing; CI upgrade-test template source path; assets
+  organized by owning-page path; §5.5 validator-enforcement overclaim
+  trimmed.
