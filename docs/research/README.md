@@ -1,4 +1,4 @@
-# docs/research — OSS KB-as-code analysis (loop 1, 20260712)
+# docs/research — OSS KB-as-code analysis (loops 1–2, 20260712)
 
 Per-project analysis docs feeding the ClaudeKB blueprint design. Read
 `SYNTHESIS.md` first — it ranks the findings (cited as F<doc>.<n>) and lists
@@ -17,3 +17,4 @@ gaps the next research loop must close.
 | [07](07-gitlab-handbook.md) | GitLab Handbook | Tuned lint configs; feedback at the point of write |
 | [08](08-backstage-techdocs.md) | Backstage TechDocs | Per-KB manifest; platform-owned build entry point |
 | [09](09-basic-memory.md) | Basic Memory | MCP-over-Markdown validated; maybe reuse, don't build |
+| [10](10-loop2-experiments.md) | Loop 2 experiments | SSG bake-off data; copier confirmed (D10); log.md union-merge passes; Cloudflare docs-level checks |
