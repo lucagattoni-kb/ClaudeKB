@@ -1,0 +1,31 @@
+# ClaudeKB blueprint — copier template config (spec §3).
+_subdirectory: template
+
+# KB-owned paths: seeded once on scaffold, never overwritten by upgrades (E2).
+_skip_if_exists:
+  - kb.yml
+  - vocab.yml
+  - nav.yml
+  - CLAUDE-KB.md
+  - docs/**
+
+_message_after_copy: |
+  KB scaffolded. Next (see playbooks/scaffold-kb.md in the blueprint):
+    uv lock && git init -b main && git add -A && git commit -m "scaffold"
+    uv run kbtool check && uv run kbtool build
+
+kb_name:
+  type: str
+  help: "Slug — becomes repo kb-<slug>, worker kb-<slug>, host kb-<slug>.example.com"
+  validator: >-
+    {% if not (kb_name | regex_search('^[a-z0-9][a-z0-9-]{1,30}$')) %}
+    Must be 2-31 chars, lowercase letters/digits/hyphens, not starting with a hyphen.
+    {% endif %}
+
+kb_title:
+  type: str
+  help: "Human-readable KB title"
+
+kb_description:
+  type: str
+  help: "One-sentence description"

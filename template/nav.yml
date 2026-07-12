@@ -1,0 +1,8 @@
+# Curated/hybrid navigation (KB-owned). Entries are explicit pages or glob
+# sections ({glob: "dir/**.md"}); the build expands globs to title-sorted
+# lists. Every page must appear here (explicitly or via a glob) or the build
+# fails — this is the anti-orphan guarantee.
+nav:
+  - Home: index.md
+  - Public: {glob: "public/**.md"}
+  - Change log: log.md

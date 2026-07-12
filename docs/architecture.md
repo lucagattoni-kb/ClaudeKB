@@ -1,8 +1,18 @@
 # ClaudeKB Blueprint — Architecture Spec v1
 
-Status: reviewed — ready to implement (7 adversarial passes, 20260712 12:12;
-amended for checkpoint-3 decisions D15–D18 and re-reviewed, passes 8–9,
-20260712 12:10)
+Status: implemented (20260712 12:37) — blueprint built and verified end-to-end
+against this spec; `[verify-at-impl]` items resolved (see CHANGELOG
+"spec deviations resolved during implementation"). Prior: reviewed after 9
+adversarial passes (D1–D18).
+
+Implementation deltas from this text (full detail in CHANGELOG):
+the vendored wheel keeps its **canonical versioned filename**
+(`vendor/kbtool-<ver>-py3-none-any.whl`), not a fixed `kbtool.whl` — uv
+rejects a renamed wheel, and `copier update` deletes the old-versioned wheel
+cleanly. Root-absolute links rewrite to the **final URL path**. PyMarkdown
+**MD025** is disabled (conflicts with our frontmatter-title + body-H1
+convention). Zensical `docs_dir`/`site_dir` overrides and frontmatter-less
+home rendering: confirmed working.
 
 > Implements the decision record `REQUIREMENTS.md` D1–D18 using research
 > findings `docs/research/` (cited F<doc>.<n>) and loop-2 experiment results
@@ -110,11 +120,12 @@ kb-<name>/
 ├── nav.yml                     # KB-owned curated nav w/ glob sections (§6.2)
 ├── vocab.yml                   # KB-owned controlled vocabulary (§5.2)
 ├── vendor/
-│   └── kbtool.whl              # BP-owned built artifact (D15) — carries the
-│                               # validators, preprocessor, playbooks (D16),
-│                               # site-base.yml, frontmatter schema, and lint
-│                               # config as package data. Fixed filename;
-│                               # version enforced by the pyproject pin
+│   └── kbtool-<ver>-py3-none-any.whl  # BP-owned built artifact (D15) —
+│                               # carries validators, preprocessor, playbooks
+│                               # (D16), site-base.yml, frontmatter schema, and
+│                               # lint config as package data. Canonical
+│                               # versioned filename (uv requires it); the
+│                               # pyproject pin references it exactly.
 ├── pyproject.toml              # BP-owned; pins kbtool==X.Y.Z (uv source →
 │                               # vendor/kbtool.whl) + zensical + deps
 ├── uv.lock                     # generated at scaffold (copier task), then
@@ -407,7 +418,8 @@ release script that lives in the blueprint repo only (deliberately **not** a
 kbtool command — a KB must not be able to casually regenerate its own
 boundary manifest and whitewash drift) and is shipped in the template.
 With D15/D16 most blueprint-owned material lives *inside the wheel*, so the
-checksummed set shrinks to: `vendor/kbtool.whl`, `.gitattributes`,
+checksummed set shrinks to: `vendor/kbtool-<ver>-py3-none-any.whl`,
+`.gitattributes`,
 `.gitignore`, `CLAUDE.md` (the agent contract is deliberately written
 KB-agnostic so it stays static and checksummable; KB specifics live in
 `CLAUDE-KB.md`). Files whose rendered content varies per KB

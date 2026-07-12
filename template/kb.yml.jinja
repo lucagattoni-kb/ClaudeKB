@@ -1,0 +1,18 @@
+name: {{ kb_name }}
+title: {{ kb_title }}
+description: {{ kb_description }}
+url: https://kb-{{ kb_name }}.example.com
+visibility: private        # private | public — drives the Access playbook.
+                           # To flip: edit this field and re-run
+                           # `uv run kbtool playbook access-dns-setup`.
+platform:                  # D17: intended values for state that lives in
+  workers_builds:          # Cloudflare/GitHub, not files. This record is the
+    build_command: uv run kbtool ci      # source of truth; the dashboard is a
+    deploy_command: npx wrangler deploy  # cache of it (verified at launch).
+    branch: main
+  access_apps:
+    - name: kb-{{ kb_name }}
+      policy: allow-owner
+    - name: kb-{{ kb_name }}-public
+      policy: bypass-everyone
+      path: /public

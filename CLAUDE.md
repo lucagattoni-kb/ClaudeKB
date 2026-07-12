@@ -1,34 +1,51 @@
-# ClaudeKB
+# ClaudeKB (blueprint repo)
 
-**Blueprint repository** for a system of 10+ independent, content-agnostic,
-docs-as-code knowledge bases (Markdown in git + SSG, MkDocs Material candidate),
-one repo per KB, AI agents as primary readers/writers via direct git commits.
-This repo is not a KB: it scaffolds new self-sufficient KB repos and upgrades
-existing ones to the latest blueprint version (see REQUIREMENTS.md §4).
+**Blueprint repository** for a fleet of 10+ independent, content-agnostic,
+docs-as-code knowledge bases — one repo per KB, AI agents as primary
+readers/writers via direct git commits. This repo is **not** a KB: it scaffolds
+new self-sufficient KB repos and upgrades existing ones (REQUIREMENTS.md §4).
 
 ## Canonical context
 
-Read `REQUIREMENTS.md` before any design or implementation work. It contains
-the full requirements, the docs-as-code decision rationale, and the open
-questions. Do not re-litigate settled decisions; do not silently resolve open
-questions — surface them.
+Read `docs/architecture.md` (the implementation spec) and `REQUIREMENTS.md`
+(decisions D1–D18) before any structural change. Do not re-litigate settled
+decisions; surface, don't silently resolve, anything genuinely open.
 
 ## Working principles
 
-- Prefer **structural guarantees over conventions**; verify empirically before
-  adding enforcement.
-- Strict CI: frontmatter schema validation, link checking, lint — build fails
-  on errors.
-- Design for parallel agent write sessions (git-native concurrency).
+- Prefer **structural guarantees over conventions**; verify empirically.
+- Strict gate: frontmatter schema, link/orphan checks, lint, boundary
+  checksums — `kbtool check` fails on errors.
+- Design for parallel agent writes (git-native, log.md union merge).
 - Keep future extensions in mind without building them: unified cross-KB
-  search, MCP/RAG retrieval layer, offline reading.
+  search, MCP/RAG retrieval, offline reading.
 
-## Current phase
+## Layout
 
-Bootstrap. Next milestones:
+- `src/kbtool/` — the ONLY home of the KB toolchain source (D15). Built to a
+  wheel, vendored into each KB. `data/` holds package data (playbooks,
+  `site-base.yml`, `frontmatter.schema.json`, `pymarkdown.json`).
+- `template/` — the copier template. `.jinja` files are rendered; everything
+  else is copied verbatim. `template/vendor/` holds the built wheel;
+  `template/blueprint-checksums.json` is generated.
+- `playbooks/scaffold-kb.md` — the pre-KB procedure. All other playbooks ship
+  inside kbtool (`uv run kbtool playbook <name>`).
+- `scripts/release.py` — builds the wheel into the template + regenerates
+  checksums. Blueprint-side only (never a kbtool command — D15 anti-whitewash).
+- `tests/` — unit tests + the e2e/upgrade harnesses CI runs.
 
-1. Resolve open questions in `REQUIREMENTS.md` §5 (upgrade/scaffold mechanism first)
-2. Architecture spec: stack, blueprint layout, ownership-boundary manifest,
-   CI gates, hosting + access
-3. Implement the blueprint (scaffold + upgrade paths)
-4. Scaffold KB #1 and validate the round trip: scaffold → edit → upgrade
+## Working rules
+
+- **After changing `src/kbtool/` or any `template/` static file, run
+  `python scripts/release.py`** to rebuild the vendored wheel and regenerate
+  checksums; commit the result. CI `--check` (on tags) enforces sync.
+- **Verify before committing**: `bash tests/run_e2e.sh` plus
+  `uv run --with pytest pytest tests/`.
+- **Cross-KB conventions are the public API** (D18): URL scheme, `kb://`
+  resolution, `kb.yml` format. Changing any is a MAJOR release + migration.
+- **Release** (spec §12.3): finalize CHANGELOG (timestamped `YYYYMMDD HH:MM`,
+  breaking/non-breaking separated) → bump `__version__` in
+  `src/kbtool/__init__.py` → `python scripts/release.py` → commit → tag
+  `vX.Y.Z` → push commit + tag.
+- Every change on a timestamped branch/worktree, never a primary checkout
+  (user's global rules).

@@ -1,0 +1,38 @@
+name: blueprint-ci
+
+# Blueprint CI (spec §12). Runs on the blueprint repo only. KB repos have no
+# Actions — their gate is Workers Builds (D5).
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # kbtool's date footer needs full history (not shallow)
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Unit tests
+        run: uv run --with pytest pytest tests/test_kbtool.py -q
+
+      - name: Release manifest in sync (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: uv run python scripts/release.py --check
+
+      # Job 1 (§12.1): scaffold from HEAD, rebuild wheel from src/ into the
+      # fixture, and run the full gate — the scaffold must always be green.
+      - name: Scaffold + gate fixture
+        run: bash tests/run_e2e.sh
+
+      # Job 2 (§12.2): upgrade a fixture scaffolded from the latest release tag
+      # up to HEAD; assert zero conflicts and a green gate. Skipped until the
+      # first tag exists (bootstrap).
+      - name: Upgrade test (from latest release tag)
+        run: bash tests/run_upgrade.sh

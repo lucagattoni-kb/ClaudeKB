@@ -1,0 +1,27 @@
+# Blueprint-owned SSG base config (D15, spec 6.2.5). Shipped as kbtool package
+# data. The preprocessor merges nav + site_name + site_url + docs_dir/site_dir
+# onto this to produce .build/mkdocs.yml. Never edited per-KB.
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.instant
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+plugins:
+  - search
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    not_found: warn
