@@ -132,12 +132,13 @@ boundary validator (§8).
 
 ### 5.1 Frontmatter (D6 + D11)
 
-Required on every `docs/**/*.md` **except any `index.md` and any `log.md`**
-— OKF reserves both filenames in any directory (F2.3; this resolves the
-question doc 02 left open). The spec marks `index.md` explicitly as
-frontmatter-free; we extend the same rule to `log.md` for symmetry: both
-carry **no frontmatter**, their H1 is the title. **[verify-at-impl]**
-Zensical renders a frontmatter-less home page correctly. Optional but validated when present:
+Required fields on every `docs/**/*.md`: **`type`, `title`, `description`**
+— except any `index.md` and any `log.md`, which are exempt entirely: OKF
+reserves both filenames in any directory (F2.3; this resolves the question
+doc 02 left open), marks `index.md` explicitly as frontmatter-free, and we
+extend the same rule to `log.md` for symmetry — both carry **no
+frontmatter**, their H1 is the title. **[verify-at-impl]** Zensical renders
+a frontmatter-less home page correctly. Optional but validated when present:
 `tags` (list), `status` (enum: `draft | review | published | archived`).
 Unknown extra keys are allowed and preserved (OKF permissive-producer rule,
 F2.1). No date fields — dates come from git (D6).
@@ -275,9 +276,10 @@ deploys (CI) and, when available locally, for `kbtool status` (§7).
 ### 6.2 Preprocess step (the D12/D14 keystone)
 
 1. Copy `docs/` → `.build/docs/` (gitignored).
-2. Rewrite links in the copies: `kb://<kb>/<path>` → absolute https URL;
-   root-absolute `/a/b.md` → correct relative path. Content on disk stays
-   logical; any SSG can consume the output **[verified E1 rationale]**.
+2. Rewrite links in the copies: `kb://<kb>/<path>.md` (the §5.2 source
+   form) → absolute https URL; root-absolute `/a/b.md` → correct relative
+   path. Content on disk stays logical; any SSG can consume the output
+   **[verified E1 rationale]**.
 3. Inject per-page footer line `*Last updated: <date> · from git history*`
    (appended as a `\n\n---\n` separated block) using
    `git log -1 --format=%as -- docs/<original-path>` — always the original
@@ -369,7 +371,8 @@ a no-PR flow.
 `blueprint-checksums.json` is generated at blueprint release time by a
 release script that lives in the blueprint repo only (deliberately **not** a
 kbtool command — a KB must not be able to casually regenerate its own
-boundary manifest and whitewash drift) and is shipped in the template. It lists sha256 for **static** blueprint-owned files
+boundary manifest and whitewash drift) and is shipped in the template.
+It lists sha256 for **static** blueprint-owned files
 (`tools/**`, `schema/**`, `config/site-base.yml`, `pymarkdown.json`,
 `.gitattributes`, `CLAUDE.md` — the agent contract is deliberately written
 KB-agnostic so it stays static and checksummable; KB specifics live in
@@ -559,3 +562,7 @@ produces zero conflicts.
   regeneration confined to a blueprint-side release script, not kbtool
   (whitewash prevention). L: copier pin applied to scaffold step too;
   visibility flip procedure noted in kb.yml.
+- pass 5 (20260712 12:06): 1 HIGH, 1 LOW, 1 cosmetic — all fixed. H: the
+  pass-3 edit of §5.1 had dropped the required-field list (`type`, `title`,
+  `description`) from the schema definition — restored. L: kb:// notation
+  aligned between §5.2 and §6.2.2. Cosmetic: §8 splice line-wrap.
