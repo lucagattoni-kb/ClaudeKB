@@ -23,8 +23,10 @@ uvx "$COPIER" copy --defaults --vcs-ref "$LATEST_TAG" \
   "$BP" "$FX"
 python3 "$BP/scripts/release.py" --sync-dir "$FX"
 git -C "$FX" init -q -b main
+git -C "$FX" config user.email ci@claudekb.local
+git -C "$FX" config user.name "ClaudeKB CI"
 git -C "$FX" add -A
-git -C "$FX" -c user.email=ci@ci -c user.name=ci commit -qm scaffold
+git -C "$FX" commit -qm scaffold
 
 echo "== copier update $LATEST_TAG -> HEAD ($HEAD_SHA)"
 ( cd "$FX" && uvx "$COPIER" update --defaults --vcs-ref "$HEAD_SHA" )
@@ -35,6 +37,6 @@ fi
 echo "== rebuild wheel from src/ + gate"
 python3 "$BP/scripts/release.py" --sync-dir "$FX"
 git -C "$FX" add -A
-git -C "$FX" -c user.email=ci@ci -c user.name=ci commit -qm "post-update" || true
+git -C "$FX" commit -qm "post-update" || true
 ( cd "$FX" && uv lock -q && uv sync -q && uv run kbtool check && uv run kbtool build )
 echo "UPGRADE OK"

@@ -23,8 +23,10 @@ python3 "$BP/scripts/release.py" --sync-dir "$FX"
 
 echo "== init git + sync"
 git -C "$FX" init -q -b main
+git -C "$FX" config user.email ci@claudekb.local
+git -C "$FX" config user.name "ClaudeKB CI"
 git -C "$FX" add -A
-git -C "$FX" -c user.email=ci@ci -c user.name=ci commit -qm scaffold
+git -C "$FX" commit -qm scaffold
 ( cd "$FX" && uv lock -q && uv sync -q )
 
 echo "== kbtool check + build (green scaffold, F4.5)"
@@ -61,7 +63,7 @@ nav.write_text(nav.read_text().replace(
     "  - Change log: log.md",
     '  - Concepts: {glob: "concepts/**.md"}\n  - Change log: log.md'))
 PY
-( cd "$FX" && git add -A && git -c user.email=ci@ci -c user.name=ci commit -qm "add page" \
+( cd "$FX" && git add -A && git commit -qm "add page" \
     && uv run kbtool check && uv run kbtool build )
 
 echo "== parallel log.md appends via union driver (§14d, E3)"
@@ -69,10 +71,10 @@ echo "== parallel log.md appends via union driver (§14d, E3)"
   cd "$FX"
   git checkout -q -b sessionA
   printf '\n## 20260712 10:00 ingest | Session A\nA body.\n' >> docs/log.md
-  git -c user.email=a@a -c user.name=a commit -qam "A"
+  git commit -qam "A"
   git checkout -q main
   printf '\n## 20260712 10:01 ingest | Session B\nB body.\n' >> docs/log.md
-  git -c user.email=b@b -c user.name=b commit -qam "B"
+  git commit -qam "B"
   git merge -q --no-edit sessionA
   grep -q "Session A" docs/log.md && grep -q "Session B" docs/log.md \
     || { echo "FAIL: a concurrent append was lost"; exit 1; }
