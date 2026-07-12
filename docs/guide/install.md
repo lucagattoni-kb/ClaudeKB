@@ -30,7 +30,9 @@ Hosting is on Cloudflare's free tier. First KB only:
    fleet; the Cloudflare Workers Builds GitHub app then scopes to a single org.
 3. **A Cloudflare account with your domain** already on Cloudflare (for the
    `kb-<name>.<your-domain>` hostnames — free Universal SSL covers one
-   subdomain level).
+   subdomain level). You pass this domain once per KB via the `kb_domain`
+   scaffold answer (see [Create a KB](create-a-kb.md)); it's stored per-KB and
+   reused on upgrades.
 4. **Cloudflare Zero Trust onboarded once** (pick a team name) — required before
    any Access application can exist. The free plan covers 50 users.
 

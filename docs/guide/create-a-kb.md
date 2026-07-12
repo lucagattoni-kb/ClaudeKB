@@ -12,7 +12,7 @@ hyphens), and `<org>` with your fleet's GitHub org.
 
 ```bash
 gh repo create <org>/kb-<name> --private
-uvx copier@9.16.0 copy --vcs-ref v0.1.1 gh:<org>/ClaudeKB kb-<name> \
+uvx copier@9.16.0 copy --vcs-ref <latest-tag> gh:<org>/ClaudeKB kb-<name> \
   -d kb_domain=<domain> -d kb_name=<name> -d kb_title="<Title>" -d kb_description="<one sentence>"
 cd kb-<name>
 uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
@@ -21,6 +21,16 @@ uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
 `--vcs-ref` pins the blueprint version — always scaffold from a released tag,
 never a branch. The scaffold produces a complete KB: content skeleton, nav,
 vocabulary, the vendored toolchain, and deploy config.
+
+**The four answers.** `kb_name` is the slug (→ repo `kb-<name>`, worker, and
+hostname). `kb_title` and `kb_description` are human-facing. **`kb_domain`** is
+the root domain your fleet is hosted on — the KB is served at
+`kb-<name>.<kb_domain>`. It's a fleet-wide constant (usually the same for every
+KB), so it defaults to `example.com`; pass `-d kb_domain=<your-domain>` to set
+it. copier stores every answer in the KB's `.copier-answers.yml`, so you never
+retype them — later `copier update` upgrades reuse them automatically. If you
+omit `-d` flags, copier prompts for each (the `kb_domain` prompt offers the
+default).
 
 ## 2. Gate locally
 
