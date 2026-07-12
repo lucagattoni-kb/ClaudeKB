@@ -7,7 +7,28 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 (nothing yet)
 
-## [0.1.1] - 20260712 16:54
+## [0.1.2] - 20260712 17:12
+
+From a critical adversarial retrospective over the whole project after KB #1
+went live (`docs/research/11-launch-retrospective.md`).
+
+### Fixed
+
+- **`kbtool status` red-deploy detection now actually works.** It read the
+  deploy result via `wrangler`, which needs Cloudflare credentials agents don't
+  have — so it silently degraded to "unknown" in every real session (F7.2 was
+  effectively a no-op). It now reads the Workers Builds result from the GitHub
+  check-runs API via `gh` (the auth agents *do* have), falling back to
+  `wrangler`, then a dashboard nudge.
+- **Preprocessor no longer corrupts a link whose visible text equals its URL.**
+  `[/a/b.md](/a/b.md)` rewrote the text instead of the URL; now only the URL is
+  rewritten. Regression test added.
+
+### Changed
+
+- Docs describe the ownership boundary as checksum drift-detection with the
+  `copier update` conflict as the real backstop (it is not tamper-proof against
+  an editor who also rewrites the manifest — accepted for the solo threat model).
 
 Post-launch fix from KB #1 (kb-sandbox) going live. The live E4 checklist all
 passed (private-by-default, `/public` bypass precedence, workers.dev lockdown,

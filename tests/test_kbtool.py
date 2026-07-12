@@ -7,7 +7,21 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from kbtool import links, nav  # noqa: E402
+from kbtool import links, nav, preprocess  # noqa: E402
+
+
+@pytest.mark.parametrize("text,expected", [
+    # normal link: only the URL is rewritten
+    ("[Alpha](/concepts/alpha.md)", "[Alpha](/concepts/alpha/)"),
+    # link text equals the URL string — must not corrupt the text (R2 regression)
+    ("[/concepts/alpha.md](/concepts/alpha.md)", "[/concepts/alpha.md](/concepts/alpha/)"),
+    # cross-KB rewrite
+    ("[x](kb://other/p.md)", "[x](https://kb-other.example.com/p/)"),
+    # non-.md asset link left untouched
+    ("![a](/media/x.png)", "![a](/media/x.png)"),
+])
+def test_rewrite_links(text, expected):
+    assert preprocess._rewrite_links(text, "sandbox", "example.com") == expected
 
 
 @pytest.mark.parametrize("src,url", [

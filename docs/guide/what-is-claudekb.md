@@ -39,9 +39,11 @@ renaming the blueprint can't break a single live KB.
 
 Every file in a KB is either **blueprint-owned** (toolchain, config, CI —
 overwritten on upgrade) or **KB-owned** (content, navigation, vocabulary — never
-touched by upgrades). The boundary is machine-enforced: blueprint-owned files
-are checksummed, and editing one fails the validator. This is what lets an
-upgrade confidently overwrite the plumbing without ever clobbering your content.
+touched by upgrades). The boundary is checksum-checked: blueprint-owned files
+are hashed, so editing one is flagged by the validator, and the real backstop
+is that any divergence surfaces as a conflict at the next `copier update`. This
+is what lets an upgrade confidently overwrite the plumbing without clobbering
+your content.
 
 ## What a KB looks like
 

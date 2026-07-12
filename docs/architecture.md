@@ -427,11 +427,16 @@ timeout **[verified]**; toy builds ≈ seconds (E1). Queued builds are
 acceptable — publish latency is explicitly irrelevant (REQUIREMENTS §3).
 Deploy-gate property: a red commit lands in git but never deploys. **Red
 deploys must be actively detected**, not assumed noticed: the session-start
-ritual (§9) includes `kbtool status`, which reports the latest deployment
-result via `npx wrangler deployments list` (exact command/output parsing
-**[verify-at-impl]**) and falls back to instructing a dashboard check if the
-API is unavailable. This implements F7.2's feedback-at-the-point-of-write for
-a no-PR flow.
+ritual (§9) includes `kbtool status`, which reads the Workers Builds result
+from the **GitHub check-runs API** via `gh`
+(`repos/<owner>/<repo>/commits/<sha>/check-runs`, filtering the
+`cloudflare-workers-and-pages` app). This is the reliable path because agents
+run `gh`-authenticated but **not** `wrangler`-authenticated — the original
+`wrangler deployments list` plan needed Cloudflare creds agents lack and was
+effectively a no-op locally (found in the launch retrospective, v0.1.2;
+`docs/research/11-launch-retrospective.md`). Falls back to `wrangler`, then a
+dashboard nudge. This implements F7.2's feedback-at-the-point-of-write for a
+no-PR flow.
 
 ## 8. Ownership boundary enforcement
 

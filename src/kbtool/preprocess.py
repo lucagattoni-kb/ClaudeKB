@@ -39,12 +39,15 @@ def _rewrite_target(target: str, kb_name: str, suffix: str) -> str:
 
 def _rewrite_links(text: str, kb_name: str, suffix: str) -> str:
     def repl(m: re.Match) -> str:
-        whole = m.group(0)
         target = m.group(1)
         new = _rewrite_target(target, kb_name, suffix)
         if new == target:
-            return whole
-        return whole.replace(target, new, 1)
+            return m.group(0)
+        # Replace ONLY the URL (group 1) by its span within the match, so a
+        # link whose visible text equals the URL isn't corrupted.
+        s, e = m.start(1) - m.start(0), m.end(1) - m.start(0)
+        whole = m.group(0)
+        return whole[:s] + new + whole[e:]
 
     return linkmod._LINK_RE.sub(repl, text)
 
