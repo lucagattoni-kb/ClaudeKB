@@ -374,7 +374,7 @@ kbtool command — a KB must not be able to casually regenerate its own
 boundary manifest and whitewash drift) and is shipped in the template.
 It lists sha256 for **static** blueprint-owned files
 (`tools/**`, `schema/**`, `config/site-base.yml`, `pymarkdown.json`,
-`.gitattributes`, `CLAUDE.md` — the agent contract is deliberately written
+`.gitattributes`, `.gitignore`, `CLAUDE.md` — the agent contract is deliberately written
 KB-agnostic so it stays static and checksummable; KB specifics live in
 `CLAUDE-KB.md`). Files whose rendered content varies per KB
 (`wrangler.jsonc`, `pyproject.toml`) instead carry a first-line managed
@@ -566,3 +566,6 @@ produces zero conflicts.
   pass-3 edit of §5.1 had dropped the required-field list (`type`, `title`,
   `description`) from the schema definition — restored. L: kb:// notation
   aligned between §5.2 and §6.2.2. Cosmetic: §8 splice line-wrap.
+- pass 6 (20260712 12:10): 1 LOW — fixed. `.gitignore` was the only
+  blueprint-owned static file protected by neither checksum nor marker;
+  added to the checksummed set.
