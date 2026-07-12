@@ -1,10 +1,10 @@
 {
-  "blueprint_version": "0.1.0",
+  "blueprint_version": "0.1.1",
   "checksums": {
     ".gitattributes": "febf0cc9b56da1742c406f41ed2c8f14732ecf720b05b4d9891eadc4d9124846",
     ".gitignore": "7f90ced882b2527ad7a991e77d8d5d59cbe55c7a4c9f3ea8c95360fe77450480",
-    "CLAUDE.md": "52ea768a4ff32cb25b5667e7f3e6dca890d067bd9c3d8b9abc7ce3c2cc3bd9d0",
-    "vendor/kbtool-0.1.0-py3-none-any.whl": "12bf9d3ee210ade840f29f3a924b93f9b3be51ecb3b98f14d8594e1dcc87449b"
+    "CLAUDE.md": "ccf002b309c6e6f2acbfe21275020c7bd05c92ef8797dd3b1ba48ec8b84f3467",
+    "vendor/kbtool-0.1.1-py3-none-any.whl": "2a98c21566cf472b557fe27ff5c6bd053696f81da95c1f78e8c68771e5e554dd"
   },
   "marked_files": [
     "wrangler.jsonc",

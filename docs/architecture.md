@@ -5,6 +5,11 @@ against this spec; `[verify-at-impl]` items resolved (see CHANGELOG
 "spec deviations resolved during implementation"). Prior: reviewed after 9
 adversarial passes (D1–D18).
 
+v0.1.1 (20260712): live launch of KB #1 (kb-sandbox) resolved every E4
+assumption (see §10.6c) and surfaced one design gap — public pages need the
+theme's `/assets/` bypassed too, and KB media therefore relocates to
+`/media/` (§5.5, §5.6).
+
 Implementation deltas from this text (full detail in CHANGELOG):
 the vendored wheel keeps its **canonical versioned filename**
 (`vendor/kbtool-<ver>-py3-none-any.whl`), not a fixed `kbtool.whl` — uv
@@ -260,12 +265,26 @@ validator needed — placement is structural). Validator-enforced: pages under
 `/public/` must not intra-link to private pages (broken for anonymous
 readers) — warning, not error.
 
-**Known information leak, accepted for v1**: the SSG renders one global nav
-into every page, so public pages expose the *titles* (not content) of
-private pages and sections to anonymous readers. No cheap structural fix
-exists while public pages share the site build (a split build is the real
-fix — backlog). Consequence for authors, stated in CLAUDE.md: private page
-titles must not themselves be sensitive. Listed in §15.
+**Shared-build consequences, accepted for v1** (a split build is the real
+fix — backlog). Because public and private pages share one site build:
+
+1. **Theme assets must be bypassed too.** The theme's CSS/JS live at
+   `/assets/` (site root), not under `/public/`, so a `/public` bypass alone
+   leaves public pages unstyled and non-functional for anonymous readers.
+   The Access setup therefore adds a **third Bypass app on `/assets`**
+   (§10.6). This is safe: `/assets/` holds only generic theme files; KB media
+   lives at `/media/` (§5.6) and stays private, and the search index
+   (`/search.json`) and sitemap stay private, so no KB content leaks.
+   Mermaid diagrams render client-side from the now-public JS, so they work
+   on public pages; embedded **raster images do not** (they're at `/media/`,
+   private). Stated for authors in CLAUDE.md.
+2. **Nav title leak.** The one global nav exposes *page titles* (not content)
+   of private pages to anonymous readers, so **private page titles must not
+   themselves be sensitive.** Stated in CLAUDE.md. Listed in §15.
+
+Discovered live on KB #1 (20260712): the original design bypassed only
+`/public`, which under-specified the asset-namespace problem; fixed in
+blueprint v0.1.1.
 
 Moving a page across the boundary
 requires a redirect entry in `_redirects` (Workers static assets, 2,000
@@ -280,9 +299,12 @@ unaffected.
 
 ### 5.6 Media (in-repo images)
 
-Images live under `docs/assets/<path-of-owning-page>/…` (mirroring the
+Images live under `docs/media/<path-of-owning-page>/…` (mirroring the
 owning page's path prevents slug collisions) and are referenced with the
-same bundle-root-absolute form (`/assets/alpha/diagram.png`); the
+same bundle-root-absolute form (`/media/alpha/diagram.png`). **Not
+`docs/assets/`** — that path is the SSG theme's output namespace, made
+world-readable by the assets-bypass (§5.5); KB media at `/media/` stays
+private. The
 preprocessor rewrites them identically (asset paths keep their extension —
 the §5.2 `.md` mapping applies only to `.md` targets). Soft limit 2 MiB per
 file (validator warning), hard limit 20 MiB (error; Workers static assets
@@ -463,23 +485,27 @@ once before any Access app can exist).
    to the repo (dashboard; **[docs]** GitHub app flow) with §7 settings;
    first deploy creates the custom domain + DNS record automatically
    (**[docs]** `custom_domain: true`).
-6. Run `uv run kbtool playbook access-dns-setup` (D16; skip 6a–6b entirely
+6. Run `uv run kbtool playbook access-dns-setup` (D16; skip 6a–6b2 entirely
    when `kb.yml: visibility: public` — §5.5). Every platform-side value set
    here must match the `platform:` record in `kb.yml` (D17):
    a. Access app "kb-<name>" — domain `kb-<name>.example.com`, policy
       Allow, include: Luca's email; IdP: one-time PIN (default).
    b. Access app "kb-<name>-public" — domain
       `kb-<name>.example.com/public`, policy **Bypass**, include:
-      Everyone **[docs: documented pattern, E4]**. Assumption that the
-      more-specific-path app takes precedence over the hostname app is
-      implied by the documented pattern but unproven — it is probe #2 of
-      the checklist below.
-   c. Verification checklist (LIVE, first scaffold only — resolves E4's
-      remaining unknowns): anonymous request to `/` → Access login;
-      anonymous to `/public/…` → 200; `kb-<name>.<account>.workers.dev` →
-      404/blocked; search index URL unauthenticated → login. Record results
-      in `docs/research/` and, if wildcard app consolidation is preferred,
-      test `kb-*.example.com` as one app here.
+      Everyone. **[verified live on KB #1 20260712: path app takes
+      precedence over the hostname app]**
+   b2. Access app "kb-<name>-assets" — domain
+      `kb-<name>.example.com/assets`, policy **Bypass**, include:
+      Everyone. Required whenever (b) is used, so public pages render styled
+      (§5.5). Safe — theme-only namespace; KB media at `/media/` stays
+      private.
+   c. Verification checklist (LIVE — **all passed on KB #1 kb-sandbox,
+      20260712, resolving E4**): `/` → Access login (302 ✓); `/public/` →
+      200 ✓ (bypass wins over hostname app); `/assets/…css` → 200 ✓ (public
+      pages render styled); `workers.dev` → not resolvable ✓ (workers_dev
+      false); `/search.json` → login ✓ (private index, no content leak).
+      Record results in `docs/research/`; if wildcard app consolidation is
+      preferred, test `kb-*.example.com` as one app.
 7. Append scaffold entry to KB's `log.md`; register nothing centrally —
    the fleet is discoverable via `kb.yml` in each repo (F8.1).
 
@@ -637,6 +663,13 @@ produces zero conflicts.
   loses `tools/`, `config/`, `schema/`, `pymarkdown.json`, gains
   `vendor/kbtool.whl`; kb.yml gains the `platform:` record (D17); §8
   checksummed set shrinks accordingly; CI + release build the wheel.
+- pass 10 (20260712 16:54, post-launch fix, blueprint v0.1.1): live KB #1
+  surfaced that a `/public`-only Access bypass leaves public pages unstyled
+  (theme CSS/JS at `/assets/` stay gated). Fix: add a third `/assets` Bypass
+  app (safe — theme-only) and relocate KB media `docs/assets/` → `docs/media/`
+  so the wholesale `/assets` bypass can't expose private-page images. §5.5,
+  §5.6, §10.6, playbooks, kb.yml, CLAUDE.md updated. All other E4 assumptions
+  verified live and marked resolved.
 - pass 9 (20260712 12:10, re-review of the amendment): 3 findings fixed —
   playbook names unified (`ingest`/`lint` vs old file names); platform-record
   drift on upgrades handled via CHANGELOG instruction (kb.yml is KB-owned,

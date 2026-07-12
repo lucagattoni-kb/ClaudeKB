@@ -21,7 +21,8 @@ echo "== scaffold fixture from $LATEST_TAG"
 uvx "$COPIER" copy --defaults --vcs-ref "$LATEST_TAG" \
   -d kb_name=upfix -d kb_title="Upgrade Fixture" -d kb_description="Upgrade CI fixture." \
   "$BP" "$FX"
-python3 "$BP/scripts/release.py" --sync-dir "$FX"
+# Commit the fixture faithful to the release tag (NO sync-dir here — that would
+# diverge it from the tag's base and force a spurious copier-update conflict).
 git -C "$FX" init -q -b main
 git -C "$FX" config user.email ci@claudekb.local
 git -C "$FX" config user.name "ClaudeKB CI"

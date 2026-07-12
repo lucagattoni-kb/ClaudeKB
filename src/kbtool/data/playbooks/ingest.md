@@ -12,7 +12,9 @@ page types and vocabulary.
    - Links to other pages in this KB: bundle-root-absolute, e.g.
      `/concepts/alpha.md`.
    - Links to another KB: `kb://<kb-name>/<path>.md`.
-   - Images: put under `docs/assets/<page-path>/…`, reference root-absolute.
+   - Images: put under `docs/media/<page-path>/…`, reference root-absolute
+     (`/media/…`). Not `docs/assets/` — that path is theme-only and public.
+     Note images do not render on public pages for anonymous readers.
    - Do **not** add date fields — dates come from git history at build time.
 3. **Link it from `docs/index.md`** (directly or via a page already reachable
    from the index) — orphan pages fail `kbtool check`.

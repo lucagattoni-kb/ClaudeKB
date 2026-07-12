@@ -16,3 +16,6 @@ platform:                  # D17: intended values for state that lives in
     - name: kb-{{ kb_name }}-public
       policy: bypass-everyone
       path: /public
+    - name: kb-{{ kb_name }}-assets
+      policy: bypass-everyone
+      path: /assets       # theme CSS/JS (generic); KB media stays private at /media

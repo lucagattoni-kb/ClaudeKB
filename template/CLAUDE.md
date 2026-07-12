@@ -39,7 +39,9 @@ guidance lives in `@CLAUDE-KB.md`.
 
 - **Links.** Within this KB, bundle-root-absolute Markdown:
   `[Alpha](/concepts/alpha.md)`. To another KB: `[X](kb://other-kb/path.md)`.
-  Images under `docs/assets/<page-path>/…`, referenced root-absolute.
+  Images under `docs/media/<page-path>/…`, referenced root-absolute
+  (`/media/…`). Do **not** put content under `docs/assets/` — that path is
+  reserved for the theme and is world-readable (see the public/private note).
 
 - **log.md** is append-only. One entry per change:
 
@@ -48,9 +50,14 @@ guidance lives in `@CLAUDE-KB.md`.
   Short summary of what changed and why.
   ```
 
-- **Public/private.** Only `docs/public/**` is world-readable. The global nav
-  exposes *page titles* to anonymous readers, so **private page titles must not
-  themselves be sensitive.**
+- **Public/private.** Only `docs/public/**` is world-readable. Two consequences
+  of the shared site build (a split build is the backlog fix):
+  - The global nav exposes *page titles* to anonymous readers, so **private
+    page titles must not themselves be sensitive.**
+  - Public pages render with the theme (CSS/JS at `/assets/`, world-readable)
+    and Mermaid diagrams work, but **embedded raster images do not show for
+    anonymous readers** — KB media lives at `/media/` and stays private. Use
+    Mermaid, text, and code for public content.
 
 - **Ownership.** Do not edit blueprint-owned files (anything with a
   `MANAGED BY BLUEPRINT` marker, plus `vendor/`, `.gitattributes`,

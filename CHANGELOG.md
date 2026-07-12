@@ -7,6 +7,35 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 (nothing yet)
 
+## [0.1.1] - 20260712 16:54
+
+Post-launch fix from KB #1 (kb-sandbox) going live. The live E4 checklist all
+passed (private-by-default, `/public` bypass precedence, workers.dev lockdown,
+private search index), but surfaced one design gap.
+
+### Fixed
+
+- **Public pages rendered unstyled for anonymous readers.** A `/public`-only
+  Access bypass leaves the theme's CSS/JS (served at `/assets/`) behind Access.
+  The scaffold/access playbook now adds a third **Bypass app on `/assets`**
+  (theme-only namespace — safe; `/search.json` and sitemap stay private, so no
+  KB content leaks), and `kb.yml`'s `platform.access_apps` records it.
+- **KB media relocated `docs/assets/` → `docs/media/`.** Otherwise the
+  wholesale `/assets` bypass would expose images embedded on *private* pages.
+  Theme keeps `/assets/` (public); KB media at `/media/` stays private.
+  Documented limitation: public pages get text/code/**Mermaid** (renders from
+  the now-public JS) but **not** embedded raster images. CLAUDE.md, the ingest
+  playbook, and spec §5.5/§5.6/§10.6 updated.
+
+### Verified live (KB #1, resolves the deferred infra assumptions)
+
+- `uv` **is** preinstalled in the Workers Builds image — no installer prepend
+  needed; auto-detected, `uv sync` + `uv run kbtool ci` ran clean.
+- Full deploy pipeline works untouched: Workers Builds → `kbtool ci` →
+  `wrangler deploy` → auto-created custom domain `kb-sandbox.example.com`.
+- Access precedence: the `/public` path app wins over the hostname app;
+  `workers.dev` does not resolve; the search index requires login.
+
 ## [0.1.0] - 20260712 12:44
 
 ### Added (non-breaking)
