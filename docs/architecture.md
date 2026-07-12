@@ -98,7 +98,9 @@ kb-<name>/
 ├── docs/                       # KB-owned content (all of it)
 │   ├── index.md                # curated catalog (F3.4); seeded
 │   ├── log.md                  # append-only change log (E3); seeded
-│   └── public/                 # world-readable subtree (D7); seeded empty
+│   ├── assets/                 # in-repo media (§5.6); seeded w/ .gitkeep
+│   └── public/                 # world-readable subtree (D7); seeded with a
+│                               # placeholder page (git can't track empty dirs)
 ├── nav.yml                     # KB-owned curated nav (F5.4)
 ├── vocab.yml                   # KB-owned controlled vocabulary (§5.2)
 ├── config/
@@ -112,7 +114,7 @@ kb-<name>/
 ├── wrangler.jsonc              # BP-owned deploy config (§7)
 ├── .markdownlint.yml           # BP-owned tuned lint rules (F7.1)
 ├── .gitattributes              # BP-owned: `docs/log.md merge=union` (E3)
-├── .gitignore                  # BP-owned: `.build/`, `.venv/`, `site/`
+├── .gitignore                  # BP-owned: `.build/`, `.venv/`
 └── blueprint-checksums.json    # BP-owned boundary manifest (§8)
 ```
 
@@ -128,11 +130,15 @@ boundary validator (§8).
 
 ### 5.1 Frontmatter (D6 + D11)
 
-Required on every `docs/**/*.md` except `index.md` and `log.md` (OKF reserved
-files, F2.3): `type`, `title`, `description`. Optional but validated when
-present: `tags` (list), `status` (enum: `draft | review | published |
-archived`). Unknown extra keys are allowed and preserved (OKF permissive-
-producer rule, F2.1). No date fields — dates come from git (D6).
+Required on every `docs/**/*.md` **except any `index.md` and the root
+`log.md`** — OKF reserves both filenames per directory and specifies them as
+frontmatter-free (F2.3; this resolves the question doc 02 left open):
+`type`, `title`, `description`. Index and log files carry **no frontmatter**
+at all — their H1 is the title; **[verify-at-impl]** Zensical renders a
+frontmatter-less home page correctly. Optional but validated when present:
+`tags` (list), `status` (enum: `draft | review | published | archived`).
+Unknown extra keys are allowed and preserved (OKF permissive-producer rule,
+F2.1). No date fields — dates come from git (D6).
 
 `schema/frontmatter.schema.json` (JSON Schema draft 2020-12) encodes the
 above; `type` and `tags` values are additionally checked against `vocab.yml`:
@@ -146,10 +152,18 @@ tags: [example-tag]
 ### 5.2 Links (D12)
 
 - Intra-KB: standard Markdown, **bundle-root-absolute** (`/concepts/alpha.md`).
-- Cross-KB: `kb://<kb-name>/<path>` — resolved at build time to
-  `https://kb-<kb-name>.example.com/<path-as-url>`.
-- Both forms are rewritten by the preprocessor (§6.1); Zensical never sees
+- Cross-KB: `kb://<kb-name>/<path>.md` — resolved at build time to
+  `https://kb-<kb-name>.example.com/<url-path>`.
+- **Source-path → URL mapping rule** (used by both rewrites, matches
+  directory-URL output): strip the `.md` suffix and append `/`
+  (`/concepts/alpha.md` → `/concepts/alpha/`); any `index.md` maps to its
+  directory root (`/concepts/index.md` → `/concepts/`).
+- Both forms are rewritten by the preprocessor (§6.2); Zensical never sees
   them **[verified E1: Zensical emits root-absolute links broken]**.
+- Cross-KB targets are **not** resolvable at validation time (independent
+  repos); `kbtool check` validates syntax only, and broken cross-KB links are
+  tolerated at read time (OKF consumer stance, F2.2) — the lint playbook
+  (§13) sweeps them with lychee instead.
 - External links: plain URLs; checked by lychee in scheduled maintenance,
   not in the deploy gate (external-site flakiness must not block deploys).
 
@@ -181,9 +195,12 @@ Entry format (self-contained block, tolerant of blank-line collapse):
 One-line-or-few summary. Optional links.
 ```
 
-Validator: previous content must be a prefix (modulo trailing whitespace) of
-the new content — mid-file edits fail the gate (union merge is only safe for
-appends, E3).
+Validator (append-only check, precise baseline): the working-tree `log.md`
+must have `git show HEAD:docs/log.md` as a prefix (modulo trailing
+whitespace). Run after any rebase, this holds for legitimate appends — union
+merge places concurrent entries after the common base **[verified E3]** —
+and fails on mid-file edits, where union merge could otherwise corrupt
+silently. New file (no HEAD version) passes trivially.
 
 ### 5.5 Public split (D7)
 
@@ -194,6 +211,22 @@ anonymous readers) — warning, not error. Moving a page across the boundary
 requires a redirect entry in `_redirects` (Workers static assets, 2,000
 static redirects on free plan **[verified: platform limits]**); the lint
 playbook checks for orphaned inbound links on moves.
+
+**Fully-public KB variant**: `kb.yml: visibility: public` → the Access
+playbook (§10.6) creates **no** applications for the hostname; the `/public/`
+subtree convention still exists but is redundant. Flipping a KB
+public↔private later is an Access-configuration change only — URLs are
+unaffected.
+
+### 5.6 Media (in-repo images)
+
+Images live under `docs/assets/<page-slug>/…` and are referenced with the
+same bundle-root-absolute form (`/assets/alpha/diagram.png`); the
+preprocessor rewrites them identically (asset paths keep their extension —
+the §5.2 `.md` mapping applies only to `.md` targets). Soft limit 2 MiB per
+file (validator warning), hard limit 20 MiB (error; Workers static assets
+cap is 25 MiB/file **[verified: platform limits]**). Mostly-external media
+stays the norm (REQUIREMENTS §3); no git-LFS in v1.
 
 ## 6. kbtool — validator suite and build pipeline
 
@@ -209,6 +242,7 @@ SSG is invoked only as the last step of `build`.
 | `kbtool build` | `check` → preprocess (§6.2) → `zensical build -f .build/mkdocs.yml -s` → post-build assertions (search index exists; `_redirects` copied) | any step fails |
 | `kbtool serve` | preprocess → `zensical serve` on `.build/` | — |
 | `kbtool push` | `git pull --rebase --autostash` → `git push`, retried ×3 with backoff (D5 rebase-retry) | push still rejected |
+| `kbtool status` | reports last deployment result (§7) + working-tree cleanliness; used by the session-start ritual (§9) | never (informational) |
 | `kbtool ci` | alias of `build`; the single platform-owned entry point (F8.2) used by Workers Builds | — |
 
 ### 6.2 Preprocess step (the D12/D14 keystone)
@@ -220,11 +254,21 @@ SSG is invoked only as the last step of `build`.
 3. Inject per-page footer line `*Last updated: <date> · from git history*`
    using `git log -1 --format=%as -- <file>` (D6; build-time timestamp
    injection satisfies OKF `timestamp` recommendation, F2.4).
+   **Shallow-clone guard**: if `git rev-parse --is-shallow-repository` is
+   true (CI clones may be shallow **[verify-at-impl]** for Workers Builds),
+   dates would be silently wrong — the preprocessor must then either
+   `git fetch --unshallow` (preferred, if the build environment allows) or
+   omit the footer for that build. Never emit a date derived from a shallow
+   history.
 4. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
    theme, markdown extensions incl. Mermaid superfences, strict validation
    flags, search) + `nav` from `nav.yml` (KB-owned) + `site_name`/`site_url`
-   from `kb.yml`. This eliminates the mixed-ownership `mkdocs.yml` (F4.2);
-   Zensical accepts `-f <path>` **[verified E1 --help]**.
+   from `kb.yml`, plus explicit `docs_dir: docs` and `site_dir: site`
+   (both relative to the generated file's location, i.e. `.build/docs` and
+   `.build/site`). Zensical accepts `-f <path>` **[verified E1 --help]**;
+   that it honors `docs_dir`/`site_dir` overrides is **[verify-at-impl]**
+   (E1 used defaults only). This generated-config approach eliminates the
+   mixed-ownership `mkdocs.yml` (F4.2).
 
 ### 6.3 SSG pinning and fallback (D14)
 
@@ -261,8 +305,13 @@ Workers Builds configuration (per KB, set once at scaffold):
 Budget check (D5): 3,000 build-min/mo free, 1 concurrent build, 20-min
 timeout **[verified]**; toy builds ≈ seconds (E1). Queued builds are
 acceptable — publish latency is explicitly irrelevant (REQUIREMENTS §3).
-Deploy-gate property: a red commit lands in git but never deploys; the next
-agent session discovers it via the session-start ritual (§9, F7.2).
+Deploy-gate property: a red commit lands in git but never deploys. **Red
+deploys must be actively detected**, not assumed noticed: the session-start
+ritual (§9) includes `kbtool status`, which reports the latest deployment
+result via `npx wrangler deployments list` (exact command/output parsing
+**[verify-at-impl]**) and falls back to instructing a dashboard check if the
+API is unavailable. This implements F7.2's feedback-at-the-point-of-write for
+a no-PR flow.
 
 ## 8. Ownership boundary enforcement
 
@@ -280,13 +329,20 @@ as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
 - `CLAUDE.md` (blueprint-owned, overwritten on upgrade): the agent contract —
   frontmatter/link/log conventions with one example each; the command table
   (§6.1); the session ritual: **start** = read `docs/index.md`, tail of
-  `docs/log.md`, run `kbtool check`; **before ending** = update `index.md`
-  if pages were added/moved, append a `log.md` entry, `kbtool check`, commit,
+  `docs/log.md`, run `kbtool status` (catches red deploys from prior
+  sessions, §7) and `kbtool check` (catches a dirty inherited tree) — fix
+  red state before new work; **before ending** = update `index.md` if pages
+  were added/moved, append a `log.md` entry, `kbtool check`, commit,
   `kbtool push`. Imports the KB-owned half via `@CLAUDE-KB.md`.
 - `CLAUDE-KB.md` (KB-owned, seeded once): what this KB is about, its page
   types and when to create each, vocabulary rationale, KB-specific rules.
 
 ## 10. Scaffold playbook (playbooks/scaffold-kb.md)
+
+**One-time prerequisites** (first scaffold only): create the GitHub org
+(D1); transfer `ClaudeKB` (this repo) into it — one home for the whole
+fleet, GitHub auto-redirects the old URL, and the Workers Builds GitHub app
+then scopes to a single org; install/authorize that app for the org.
 
 1. `gh repo create <org>/kb-<name> --private` (org per D1).
 2. `uvx copier copy --vcs-ref v<X.Y.Z> gh:<org>/ClaudeKB kb-<name>` —
@@ -303,7 +359,10 @@ as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
       Allow, include: Luca's email; IdP: one-time PIN (default).
    b. Access app "kb-<name>-public" — domain
       `kb-<name>.example.com/public`, policy **Bypass**, include:
-      Everyone **[docs: documented pattern, E4]**.
+      Everyone **[docs: documented pattern, E4]**. Assumption that the
+      more-specific-path app takes precedence over the hostname app is
+      implied by the documented pattern but unproven — it is probe #2 of
+      the checklist below.
    c. Verification checklist (LIVE, first scaffold only — resolves E4's
       remaining unknowns): anonymous request to `/` → Access login;
       anonymous to `/public/…` → 200; `kb-<name>.<account>.workers.dev` →
@@ -324,8 +383,10 @@ as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
      the KB-side need properly (usually: move the customization to a KB-owned
      file or file a blueprint issue).
   3. Copier `_migrations` run automatically for crossed versions (mechanical
-     changes); CHANGELOG lists **content playbooks** (agent-executed, e.g.
-     frontmatter migrations across articles) the agent runs now (F4.4).
+     changes; v1 ships none — the mechanism is first exercised, under the
+     §12 upgrade test, by whichever release first needs one); CHANGELOG
+     lists **content playbooks** (agent-executed, e.g. frontmatter
+     migrations across articles) the agent runs now (F4.4).
   4. `uv run kbtool check && uv run kbtool build`; commit with the blueprint
      version in the message; `kbtool push`; append `log.md` entry.
 - Fleet upgrades are per-KB and independent — no orchestration in v1.
@@ -333,14 +394,20 @@ as conflicts at the next `copier update` **[verified E2]** — accepted for v1.
 ## 12. Blueprint CI (GitHub Actions, blueprint repo only)
 
 On PR + main push (budget: well under D1's 2,000 min/mo — one small job):
-1. Scaffold a fixture KB from the working tree (`copier copy .`), run
-   `uv run kbtool ci` inside it — the scaffold must always produce a green
-   KB (F4.5).
-2. Upgrade test: scaffold from the **latest release tag**, then
-   `copier update` to the working tree; assert zero conflicts and green
-   `kbtool ci` — guarantees released upgrades don't break clean KBs.
-3. On release tag: regenerate `blueprint-checksums.json`, verify CHANGELOG
-   has an entry for the tag, then tag.
+1. Scaffold a fixture KB from the CI checkout (committed `HEAD`, not a dirty
+   tree — copier needs a git ref), **regenerate `blueprint-checksums.json`
+   inside the fixture first** (mid-development checksums are legitimately
+   stale between releases), then run `uv run kbtool ci` — the scaffold must
+   always produce a green KB (F4.5).
+2. Upgrade test: scaffold a second fixture from the **latest release tag**,
+   then `copier update --vcs-ref <CI HEAD sha>` (a sha is a valid ref;
+   copier updates between any two template refs); assert zero conflicts and
+   green `kbtool ci` — guarantees released upgrades don't break clean KBs.
+3. Release procedure (ordered, breaking the checksum circularity): finalize
+   CHANGELOG entry (timestamped, breaking/non-breaking separated) →
+   regenerate `blueprint-checksums.json` from the template → commit → tag
+   `vX.Y.Z` → push commit + tag. CI on the tag asserts the checksums match
+   the tagged tree and the CHANGELOG has the version's entry.
 
 KB repos get **no** GitHub Actions in v1 — the deploy gate is Workers Builds
 (D5); forge CI minutes stay unspent.
@@ -360,10 +427,12 @@ KB repos get **no** GitHub Actions in v1 — the deploy gate is Workers Builds
 
 Blueprint v1 is done when: (a) blueprint CI (§12) is green including the
 upgrade test; (b) KB #1 scaffolds via §10 in ≤ 1 hour of agent time with
-zero manual file edits; (c) the live checklist in §10.6c passes — all four
-Access/workers.dev probes behave as specified; (d) two parallel agent
-sessions writing to KB #1 both land (D5 + E3 mechanics) with no lost writes;
-(e) a no-op `copier update` on KB #1 produces zero conflicts.
+zero manual **file edits** (the dashboard steps in §10.5–10.6 are expected
+manual actions, scripted where the API allows); (c) the live checklist in
+§10.6c passes — all four Access/workers.dev probes behave as specified;
+(d) two parallel agent sessions writing to KB #1 both land (D5 + E3
+mechanics) with no lost writes; (e) a no-op `copier update` on KB #1
+produces zero conflicts.
 
 ## 15. Risks and mitigations
 
@@ -379,3 +448,17 @@ sessions writing to KB #1 both land (D5 + E3 mechanics) with no lost writes;
 ## Iteration log
 
 - pass 0 (20260712 11:31): preliminary draft written.
+- pass 1 (20260712 11:38): 2 HIGH, 10 MEDIUM, 6 LOW — all fixed. H: red-deploy
+  detection was claimed but unimplemented (added `kbtool status` + ritual);
+  git-date footer silently wrong under shallow clones (guard added). M: empty
+  `public/` dir untrackable (placeholder); index.md/log.md frontmatter policy
+  resolved (none, OKF-aligned, all directories); path→URL mapping rule
+  specified; `docs_dir`/`site_dir` overrides made explicit + verify-at-impl;
+  org + blueprint-repo-transfer prerequisites added; CI upgrade-test refs
+  made concrete (sha as ref); checksum staleness in CI fixed (regenerate in
+  fixture); log append-only baseline defined (`HEAD` version is prefix);
+  media conventions added (§5.6); fully-public KB variant added. L: stale
+  `site/` gitignore entry; cross-KB broken-link tolerance stated; Access
+  path-precedence assumption tagged as probe #2; release ordering made
+  explicit; success-criterion wording (manual dashboard steps vs file
+  edits); `_migrations` v1 status noted.
