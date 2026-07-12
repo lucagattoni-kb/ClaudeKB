@@ -5,6 +5,10 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 ## [Unreleased]
 
+(nothing yet)
+
+## [0.1.0] - 20260712 12:44
+
 ### Added (non-breaking)
 
 - Initial blueprint implementation (spec `docs/architecture.md`, decisions
