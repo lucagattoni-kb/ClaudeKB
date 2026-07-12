@@ -56,7 +56,8 @@ ClaudeKB/
 │   ├── maintain-ingest.md
 │   └── maintain-lint.md
 ├── docs/                       # blueprint's own docs (this spec, research)
-├── tests/                      # blueprint CI fixtures (§12)
+├── tests/                      # kbtool unit tests + CI harness scripts (§12;
+│                               # fixtures are scaffolded into tmp dirs at run)
 ├── CHANGELOG.md                # semver; entries timestamped `YYYYMMDD HH:MM`
 ├── CLAUDE.md                   # blueprint repo agent instructions
 └── REQUIREMENTS.md
@@ -131,12 +132,12 @@ boundary validator (§8).
 
 ### 5.1 Frontmatter (D6 + D11)
 
-Required on every `docs/**/*.md` **except any `index.md` and the root
-`log.md`** — OKF reserves both filenames per directory and specifies them as
-frontmatter-free (F2.3; this resolves the question doc 02 left open):
-`type`, `title`, `description`. Index and log files carry **no frontmatter**
-at all — their H1 is the title; **[verify-at-impl]** Zensical renders a
-frontmatter-less home page correctly. Optional but validated when present:
+Required on every `docs/**/*.md` **except any `index.md` and any `log.md`**
+— OKF reserves both filenames in any directory (F2.3; this resolves the
+question doc 02 left open). The spec marks `index.md` explicitly as
+frontmatter-free; we extend the same rule to `log.md` for symmetry: both
+carry **no frontmatter**, their H1 is the title. **[verify-at-impl]**
+Zensical renders a frontmatter-less home page correctly. Optional but validated when present:
 `tags` (list), `status` (enum: `draft | review | published | archived`).
 Unknown extra keys are allowed and preserved (OKF permissive-producer rule,
 F2.1). No date fields — dates come from git (D6).
@@ -253,7 +254,10 @@ stays the norm (REQUIREMENTS §3); no git-LFS in v1.
 
 `tools/kbtool/` is a small blueprint-owned Python package; all commands run
 via `uv run kbtool <cmd>`. Everything is SSG-independent (F1.3/F1.4) — the
-SSG is invoked only as the last step of `build`.
+SSG is invoked only as the last step of `build`. Toolchain boundary: the
+**validate/build path is Python/uv-only** (works with no Node installed);
+Node is required solely by the deploy-adjacent paths — `wrangler` for
+deploys (CI) and, when available locally, for `kbtool status` (§7).
 
 ### 6.1 Commands
 
@@ -261,7 +265,7 @@ SSG is invoked only as the last step of `build`.
 |---|---|---|
 | `kbtool check` | All validators: frontmatter schema + vocab; intra-KB link targets exist (including kb:// syntax shape); index reachability (every content page reachable from `docs/index.md` — kills orphans, F3.4); log append-only (§5.4); boundary checksums (§8); slug-consistency triple (§5.3); Markdown lint via **PyMarkdown** (`pymarkdown` — Python/uv, keeps the toolchain Node-free; tuned `pymarkdown.json`, rule parity with the GitLab-mined set **[verify-at-impl]**); nav.yml entries and globs resolve to existing files | any validator fails |
 | `kbtool build` | `check` → preprocess (§6.2) → `zensical build -f .build/mkdocs.yml -s` → post-build assertions (search index exists; `_redirects` copied) | any step fails |
-| `kbtool serve` | preprocess → `zensical serve` on `.build/` | — |
+| `kbtool serve` | preprocess → `zensical serve -f .build/mkdocs.yml` (preview serves the preprocessed copy — re-run to pick up source edits) | — |
 | `kbtool push` | `git pull --rebase --autostash` → `git push`, retried ×3 with backoff (D5 rebase-retry) | push still rejected |
 | `kbtool status` | reports last deployment result (§7) + working-tree cleanliness; used by the session-start ritual (§9) | never (informational) |
 | `kbtool ci` | alias of `build`; the single platform-owned entry point (F8.2) used by Workers Builds | — |
@@ -286,11 +290,22 @@ SSG is invoked only as the last step of `build`.
 4. Expand `nav.yml` into an explicit nav tree — this is how the "hybrid
    navigation" requirement (REQUIREMENTS §3) is met without SSG nav plugins:
    `nav.yml` entries are either explicit (`- Home: index.md`) or glob
-   sections (`- Concepts: {glob: "concepts/**.md", sort: title}`), and the
-   generator expands globs to alphabetized explicit lists at build time.
-   With the nav always complete, `validation.nav.omitted_files` can stay
-   fatal-in-strict — a page missing from both nav and any glob is a build
-   failure, closing the curated-vs-actual drift hole.
+   sections (`- Concepts: {glob: "concepts/**.md"}`), globs expanded at
+   build time to explicit lists sorted by page title (frontmatter `title`,
+   H1 fallback for frontmatter-free files). With the nav always complete,
+   `validation.nav.omitted_files` can stay fatal-in-strict — a page missing
+   from both nav and any glob is a build failure, closing the
+   curated-vs-actual drift hole. The **seeded** `nav.yml` must itself
+   satisfy this from the first build:
+
+   ```yaml
+   - Home: index.md
+   - Public: {glob: "public/**.md"}
+   - Change log: log.md
+   ```
+
+   (New top-level sections are the KB's to add; the seed covers every
+   seeded page so scaffold step §10.4 is green out of the box.)
 5. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
    theme, markdown extensions incl. Mermaid superfences, strict validation
    flags, search) + the expanded nav + `site_name`/`site_url` from `kb.yml`,
@@ -392,7 +407,8 @@ once before any Access app can exist).
    to the repo (dashboard; **[docs]** GitHub app flow) with §7 settings;
    first deploy creates the custom domain + DNS record automatically
    (**[docs]** `custom_domain: true`).
-6. Run `playbooks/access-dns-setup.md`:
+6. Run `playbooks/access-dns-setup.md` (skip 6a–6b entirely when
+   `kb.yml: visibility: public` — §5.5):
    a. Access app "kb-<name>" — domain `kb-<name>.example.com`, policy
       Allow, include: Luca's email; IdP: one-time PIN (default).
    b. Access app "kb-<name>-public" — domain
@@ -416,7 +432,10 @@ once before any Access app can exist).
   non-breaking (REQUIREMENTS §4); entries timestamped `YYYYMMDD HH:MM`.
 - Per-KB upgrade = `playbooks/upgrade-kb.md`:
   1. Read CHANGELOG between `.copier-answers.yml:_commit` and target tag.
-  2. `uvx copier update --vcs-ref v<target>` — conflicts expected **only** if
+  2. `uvx copier==<pinned> update --vcs-ref v<target>` — copier itself is
+     version-pinned in the playbooks (a copier major could change update
+     semantics mid-fleet; the pin moves only via blueprint releases).
+     Conflicts expected **only** if
      the boundary was violated (E2); resolve favoring the blueprint, then fix
      the KB-side need properly (usually: move the customization to a KB-owned
      file or file a blueprint issue).
@@ -443,6 +462,8 @@ On PR + main push (budget: well under D1's 2,000 min/mo — one small job):
    `copier update --vcs-ref <CI HEAD sha>` (a sha is a valid ref; copier
    updates between any two template refs); assert zero conflicts and green
    `kbtool ci` — guarantees released upgrades don't break clean KBs.
+   **Bootstrap**: skipped (with a visible notice) while no release tag
+   exists yet; mandatory from v1.0.0 on.
 3. Release procedure (ordered, breaking the checksum circularity): finalize
    CHANGELOG entry (timestamped, breaking/non-breaking separated) →
    regenerate `blueprint-checksums.json` from the template → commit → tag
@@ -483,7 +504,7 @@ produces zero conflicts.
 | Access misconfig exposes private content | if | §10.6c live checklist is a launch gate per KB; `visibility` in kb.yml drives the playbook; search/sitemap stay behind Access (§5.5) |
 | Public pages leak private page *titles* via global nav | accepted | documented in §5.5 + CLAUDE.md rule (titles must not be sensitive); split build is the backlog fix |
 | Agent violates boundary/conventions | when | §8 validator + CLAUDE.md contract + E2's recurring-conflict pain surfacing at upgrade |
-| log.md union-merge corruption via mid-file edit | if | append-only validator (§5.4) fails the gate before damage lands |
+| log.md union-merge corruption via mid-file edit | if | pre-commit append-only validator (§5.4); residual bypass (commit without check) accepted per §5.4 — damage is cosmetic, git retains history |
 | Blueprint upgrade breaks all KBs at once | if | §12 upgrade test on every release; per-KB independent upgrades allow halting after the first bad one |
 
 ## Iteration log
@@ -516,3 +537,13 @@ produces zero conflicts.
   remote/push sequencing; CI upgrade-test template source path; assets
   organized by owning-page path; §5.5 validator-enforcement overclaim
   trimmed.
+- pass 3 (20260712 11:56): 4 MEDIUM, 7 LOW — all fixed. M: seeded nav.yml
+  now specified (covers log.md + public placeholder, else first build fails
+  strict); Node-free claim scoped precisely (validate/build Python-only;
+  wrangler for deploy/status); CI upgrade-test bootstrap rule (skip until
+  first tag); copier itself version-pinned in playbooks. L: any-log.md
+  frontmatter exemption consistency; OKF frontmatter-free claim precision
+  (explicit for index.md, extended by us to log.md); serve command config
+  flag + staleness note; Access playbook branches on visibility; glob sort
+  defined (title, H1 fallback); tests/ dir comment; §15 log-risk row aligned
+  with §5.4 residual.
