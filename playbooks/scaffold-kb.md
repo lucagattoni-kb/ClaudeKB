@@ -22,10 +22,19 @@ Replace `<name>`, `<title>`, `<desc>`, `<VERSION>` (latest blueprint tag).
    uvx copier==9.16.0 copy --vcs-ref v<VERSION> gh:<org>/ClaudeKB kb-<name> \
      -d kb_domain=<domain> -d kb_name=<name> -d kb_title="<title>" -d kb_description="<desc>"
    cd kb-<name>
-   uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
+   uv lock && git init -b main
+   # Publish-safe commit identity: use your GitHub noreply so history stays
+   # clean if this KB (or the fleet) ever goes public. Get it from
+   # github.com/settings/emails ("Keep my email addresses private").
+   git config user.email "<id>+<user>@users.noreply.github.com"
+   git config user.name "<Your Name>"
+   git add -A && git commit -m "scaffold kb-<name>"
    ```
 3. Gate locally — must pass before the first push:
    `uv run kbtool check && uv run kbtool build`
+   (`check` includes a secret scan — on a `visibility: public` KB a detected
+   credential fails the gate; see the [public/private
+   guide](../docs/guide/public-and-private-kbs.md).)
 4. Push and wire deploy:
    ```
    git remote add origin git@github.com:<org>/kb-<name>.git

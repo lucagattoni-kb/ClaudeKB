@@ -50,7 +50,9 @@ summarizes it.
 
 ## Public vs private
 
-Only `docs/public/**` is world-readable. Two things to know:
+See [Public vs private KBs](public-and-private-kbs.md) for the full model (repo
+visibility vs site visibility, and the secret-scan guardrail). In short, only
+`docs/public/**` is world-readable, and two things to know:
 
 - The global navigation exposes **page titles** to anonymous readers, so don't
   put secrets in private page titles.
@@ -74,7 +76,7 @@ Never edit earlier entries — `kbtool check` rejects a non-append-only log.
 
 | Command | Does |
 |---|---|
-| `uv run kbtool check` | Run all validators (the deploy gate) |
+| `uv run kbtool check` | Run all validators + secret scan (the deploy gate) |
 | `uv run kbtool build` | Check, preprocess, build the site |
 | `uv run kbtool serve` | Local live preview |
 | `uv run kbtool push` | Rebase-retry push (safe under parallel writes) |

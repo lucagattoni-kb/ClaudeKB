@@ -284,6 +284,16 @@ def check_markdown_lint(root: Path) -> list[Finding]:
 # --- aggregate -------------------------------------------------------------
 
 
+def check_secrets(root: Path, kb_yml: dict) -> list[Finding]:
+    from . import secrets as secretsmod
+
+    is_public = str(kb_yml.get("visibility", "private")) == "public"
+    return [
+        Finding(level, msg, rel, line)
+        for (level, msg, rel, line) in secretsmod.scan(root, is_public)
+    ]
+
+
 def run_all(root: Path) -> list[Finding]:
     kb_yml = load_yaml(root / "kb.yml")
     vocab = load_yaml(root / "vocab.yml") if (root / "vocab.yml").is_file() else {}
@@ -295,5 +305,6 @@ def run_all(root: Path) -> list[Finding]:
     findings += check_nav(root)
     findings += check_slug_triple(root, kb_yml)
     findings += check_boundary(root)
+    findings += check_secrets(root, kb_yml)
     findings += check_markdown_lint(root)
     return findings

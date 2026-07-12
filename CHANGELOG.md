@@ -7,6 +7,25 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 (nothing yet)
 
+## [0.4.0] - 20260712 18:13
+
+### Added (non-breaking)
+
+- **Secret-scan guardrail** in `kbtool check`. Scans `docs/**/*.md` for likely
+  credentials (private-key blocks, AWS/GitHub/Google/Slack tokens, generic
+  `key = <long-value>` assignments). On a `visibility: public` KB a
+  high-confidence match is an **error** (fails the deploy gate); on a private
+  KB it is a **warning** (so you learn before flipping it public). Personal
+  emails are warnings; `example.com`/`git@`/noreply addresses are ignored.
+  Suppress an intentional example with `kbtool-allow-secret` on the line.
+- **Publish-safe commit identity** in the scaffold playbook — set the KB's git
+  email to your GitHub noreply so history stays clean if the repo ever goes
+  public.
+- **New guide: [Public vs private KBs](docs/guide/public-and-private-kbs.md)** —
+  the two visibility axes (repo vs site), the four combinations, what each
+  exposes, and a checklist for making a KB public. Linked from the README,
+  the usage guide, the scaffold playbook, and the KB `CLAUDE.md`.
+
 ## [0.3.0] - 20260712 17:47
 
 ### Changed (non-breaking for existing KBs; new question for new scaffolds)

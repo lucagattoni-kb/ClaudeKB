@@ -40,7 +40,9 @@ Start here, in order:
    commands, and conventions.
 5. [Upgrading KBs](docs/guide/upgrading.md) — roll blueprint changes out across
    the fleet.
-6. [Roadmap](docs/guide/roadmap.md) — what's next.
+6. [Public vs private KBs](docs/guide/public-and-private-kbs.md) — repo vs site
+   visibility, and the secret-scan guardrail.
+7. [Roadmap](docs/guide/roadmap.md) — what's next.
 
 Going deeper:
 

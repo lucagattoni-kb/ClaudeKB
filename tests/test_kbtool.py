@@ -7,7 +7,47 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from kbtool import links, nav, preprocess, verify  # noqa: E402
+from kbtool import links, nav, preprocess, secrets, verify  # noqa: E402
+
+
+def _write(tmp_path, name, body):
+    p = tmp_path / "docs" / name
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(body, encoding="utf-8")
+
+
+def test_secrets_high_confidence_errors_on_public(tmp_path):
+    _write(tmp_path, "p.md", "token: ghp_" + "a" * 36 + "\n")
+    pub = secrets.scan(tmp_path, is_public=True)
+    priv = secrets.scan(tmp_path, is_public=False)
+    assert any(lvl == "error" for lvl, *_ in pub)      # error on public KB
+    assert priv and all(lvl == "warning" for lvl, *_ in priv)  # warning on private KB
+
+
+def test_secrets_private_key_block(tmp_path):
+    _write(tmp_path, "k.md", "```\n-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n```\n")
+    assert any("private key" in msg for _, msg, *_ in secrets.scan(tmp_path, is_public=True))
+
+
+def test_secrets_personal_email_is_warning(tmp_path):
+    _write(tmp_path, "e.md", "Contact someone@gmail.com for access.\n")
+    found = secrets.scan(tmp_path, is_public=True)
+    assert found and all(lvl == "warning" for lvl, *_ in found)
+
+
+def test_secrets_ignores_example_and_git_emails(tmp_path):
+    _write(tmp_path, "ok.md", "See you@example.com and `git@github.com:o/r.git`.\n")
+    assert secrets.scan(tmp_path, is_public=True) == []
+
+
+def test_secrets_allow_marker_suppresses(tmp_path):
+    _write(tmp_path, "a.md", "token: ghp_" + "a" * 36 + "  <!-- kbtool-allow-secret -->\n")
+    assert secrets.scan(tmp_path, is_public=True) == []
+
+
+def test_secrets_clean_content(tmp_path):
+    _write(tmp_path, "c.md", "# Title\n\nOrdinary prose with no credentials.\n")
+    assert secrets.scan(tmp_path, is_public=True) == []
 
 
 def test_derive_probes_private_with_bypasses():

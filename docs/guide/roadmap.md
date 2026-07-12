@@ -15,6 +15,11 @@ design and its decisions (D1–D18) are recorded in the
   → v0.2.0, all zero-conflict.
 - **`kbtool verify-access`** (v0.2.0) — the launch checklist as a no-credential
   command: anonymous probes asserted against the `kb.yml` record.
+- **Domain parameterization** (v0.3.0) and the **blueprint published** as an
+  open repository with a rewritten, sanitized history.
+- **Public-KB guardrails** (v0.4.0) — secret scan in `kbtool check` (error on
+  public KBs, warning on private) + publish-safe commit identity in the
+  scaffold; see [Public vs private KBs](public-and-private-kbs.md).
 
 ## Next (near-term)
 

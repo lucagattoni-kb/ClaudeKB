@@ -15,12 +15,19 @@ gh repo create <org>/kb-<name> --private
 uvx copier@9.16.0 copy --vcs-ref <latest-tag> gh:<org>/ClaudeKB kb-<name> \
   -d kb_domain=<domain> -d kb_name=<name> -d kb_title="<Title>" -d kb_description="<one sentence>"
 cd kb-<name>
-uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
+uv lock && git init -b main
+git config user.email "<your-github-noreply>"   # publish-safe history (see below)
+git add -A && git commit -m "scaffold kb-<name>"
 ```
 
 `--vcs-ref` pins the blueprint version — always scaffold from a released tag,
 never a branch. The scaffold produces a complete KB: content skeleton, nav,
 vocabulary, the vendored toolchain, and deploy config.
+
+**Commit identity.** Set the repo's git email to your **GitHub noreply**
+address (from github.com/settings/emails) before the first commit, so the KB's
+history stays publish-safe even if you later make the repo public. See
+[Public vs private KBs](public-and-private-kbs.md) for why history matters.
 
 **The four answers.** `kb_name` is the slug (→ repo `kb-<name>`, worker, and
 hostname). `kb_title` and `kb_description` are human-facing. **`kb_domain`** is
