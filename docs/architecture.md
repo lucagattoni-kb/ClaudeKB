@@ -1,8 +1,10 @@
 # ClaudeKB Blueprint — Architecture Spec v1
 
-Status: reviewed — ready to implement (7 adversarial passes, 20260712 12:12)
+Status: reviewed — ready to implement (7 adversarial passes, 20260712 12:12;
+amended for checkpoint-3 decisions D15–D18 and re-reviewed, passes 8–9,
+20260712 12:10)
 
-> Implements the decision record `REQUIREMENTS.md` D1–D14 using research
+> Implements the decision record `REQUIREMENTS.md` D1–D18 using research
 > findings `docs/research/` (cited F<doc>.<n>) and loop-2 experiment results
 > (E1–E4, `docs/research/10-loop2-experiments.md`). Every load-bearing claim
 > below is tagged **[verified]** (observed/confirmed this project),
@@ -48,13 +50,15 @@ deploys with no reference to the blueprint except at scaffold/upgrade time.
 ClaudeKB/
 ├── copier.yml                  # questions, _subdirectory, _skip_if_exists,
 │                               # _migrations, _tasks
-├── template/                   # the KB skeleton (everything below §4)
-├── playbooks/                  # agent-executed procedures (§10, §11)
-│   ├── scaffold-kb.md
-│   ├── upgrade-kb.md
-│   ├── access-dns-setup.md
-│   ├── maintain-ingest.md
-│   └── maintain-lint.md
+├── src/kbtool/                 # THE ONLY HOME of kbtool source (D15) —
+│                               # validators, preprocessor, and as package
+│                               # data: playbooks (D16), site-base.yml,
+│                               # frontmatter.schema.json, pymarkdown config
+├── template/                   # the KB skeleton (everything below §4),
+│                               # incl. vendor/kbtool.whl built from src/
+├── playbooks/
+│   └── scaffold-kb.md          # the one playbook that runs before a KB
+│                               # exists; all others ship in the package (D16)
 ├── docs/                       # blueprint's own docs (this spec, research)
 ├── tests/                      # kbtool unit tests + CI harness scripts (§12;
 │                               # fixtures are scaffolded into tmp dirs at run)
@@ -105,20 +109,26 @@ kb-<name>/
 │                               # placeholder page (git can't track empty dirs)
 ├── nav.yml                     # KB-owned curated nav w/ glob sections (§6.2)
 ├── vocab.yml                   # KB-owned controlled vocabulary (§5.2)
-├── config/
-│   └── site-base.yml           # BP-owned SSG config base (§6.2)
-├── schema/
-│   └── frontmatter.schema.json # BP-owned (§5.1)
-├── tools/kbtool/               # BP-owned validator/build package (§6)
-├── pyproject.toml              # BP-owned; pins zensical + deps; uv-managed
+├── vendor/
+│   └── kbtool.whl              # BP-owned built artifact (D15) — carries the
+│                               # validators, preprocessor, playbooks (D16),
+│                               # site-base.yml, frontmatter schema, and lint
+│                               # config as package data. Fixed filename;
+│                               # version enforced by the pyproject pin
+├── pyproject.toml              # BP-owned; pins kbtool==X.Y.Z (uv source →
+│                               # vendor/kbtool.whl) + zensical + deps
 ├── uv.lock                     # generated at scaffold (copier task), then
 │                               # updated only by blueprint upgrades
 ├── wrangler.jsonc              # BP-owned deploy config (§7)
-├── pymarkdown.json             # BP-owned tuned lint rules (F7.1; §6.1)
 ├── .gitattributes              # BP-owned: `docs/log.md merge=union` (E3)
 ├── .gitignore                  # BP-owned: `.build/`, `.venv/`
 └── blueprint-checksums.json    # BP-owned boundary manifest (§8)
 ```
+
+The KB repo therefore contains **no blueprint code or blueprint config as
+editable files** (D15/D16): content, identity, nav, vocabulary, and pinned
+artifacts only, plus the root files external tools require in place
+(wrangler.jsonc, pyproject/uv.lock, git dotfiles, CLAUDE.md).
 
 Ownership rule (resolves open Q2): **a path is KB-owned iff it is listed in
 `_skip_if_exists` (seeded once) or absent from the template; everything else
@@ -143,8 +153,9 @@ a frontmatter-less home page correctly. Optional but validated when present:
 Unknown extra keys are allowed and preserved (OKF permissive-producer rule,
 F2.1). No date fields — dates come from git (D6).
 
-`schema/frontmatter.schema.json` (JSON Schema draft 2020-12) encodes the
-above; `type` and `tags` values are additionally checked against `vocab.yml`:
+`frontmatter.schema.json` (JSON Schema draft 2020-12, shipped as kbtool
+package data — D15) encodes the above; `type` and `tags` values are
+additionally checked against `vocab.yml`:
 
 ```yaml
 # vocab.yml (KB-owned; validated non-empty)
@@ -184,12 +195,26 @@ description: <kb_description>
 url: https://kb-<kb_name>.example.com
 visibility: private        # private | public — drives Access playbook.
                            # Seeded private; to flip, edit this field and
-                           # re-run playbooks/access-dns-setup.md (§5.5).
+                           # re-run `kbtool playbook access-dns-setup` (§5.5).
+platform:                  # D17: intended values for state that necessarily
+  workers_builds:          # lives in Cloudflare/GitHub, not in files. The
+    build_command: uv run kbtool ci      # repo is the source of truth; the
+    deploy_command: npx wrangler deploy  # dashboard is a cache of it. §10.6c
+    branch: main                         # verifies record == reality at
+  access_apps:                           # launch; format is designed for a
+    - name: kb-<kb_name>                 # future `kbtool provision` to
+      policy: allow-owner                # consume unchanged.
+    - name: kb-<kb_name>-public
+      policy: bypass-everyone
+      path: /public
 ```
 
 `kbtool check` asserts internal consistency of the triple {`kb.yml:name`,
 `kb.yml:url`, `wrangler.jsonc` worker name + route pattern} — the three
-places the slug appears cannot drift.
+places the slug appears cannot drift. When a blueprint release changes a
+canonical platform value (e.g. the build command), the CHANGELOG instructs
+updating both the dashboard **and** the `platform:` record — kb.yml is
+KB-owned, so upgrades never rewrite it silently.
 
 Future fleet consumers (unified search/portal, F8.1) read `kb.yml` +
 `.copier-answers.yml`; nothing else is promised to them.
@@ -255,9 +280,16 @@ stays the norm (REQUIREMENTS §3); no git-LFS in v1.
 
 ## 6. kbtool — validator suite and build pipeline
 
-`tools/kbtool/` is a small blueprint-owned Python package; all commands run
-via `uv run kbtool <cmd>`. Everything is SSG-independent (F1.3/F1.4) — the
-SSG is invoked only as the last step of `build`. Toolchain boundary: the
+kbtool is a small Python package whose **source lives only in the
+blueprint's `src/kbtool/`** (D15); each KB installs it from its in-repo
+`vendor/kbtool.whl` via the pyproject pin, so `uv run kbtool <cmd>` works
+with no blueprint access and no credentials. Version integrity is
+structural: uv resolves the pin against the wheel's metadata and the lock
+records its hash, so a half-applied upgrade (wheel and pin out of step)
+fails the very next `uv run` loudly — no custom validator needed
+(**[verify-at-impl]** exact uv error behavior on wheel-content change under
+a fixed filename). Everything is SSG-independent (F1.3/F1.4) — the SSG is
+invoked only as the last step of `build`. Toolchain boundary: the
 **validate/build path is Python/uv-only** (works with no Node installed);
 Node is required solely by the deploy-adjacent paths — `wrangler` for
 deploys (CI) and, when available locally, for `kbtool status` (§7).
@@ -266,11 +298,12 @@ deploys (CI) and, when available locally, for `kbtool status` (§7).
 
 | Command | What it does | Exit ≠ 0 when |
 |---|---|---|
-| `kbtool check` | All validators: frontmatter schema + vocab; intra-KB link targets exist (including kb:// syntax shape); index reachability (every content page reachable from `docs/index.md` — kills orphans, F3.4); log append-only (§5.4); boundary checksums (§8); slug-consistency triple (§5.3); Markdown lint via **PyMarkdown** (`pymarkdown` — Python/uv, keeps the toolchain Node-free; tuned `pymarkdown.json`, rule parity with the GitLab-mined set **[verify-at-impl]**); nav.yml entries and globs resolve to existing files | any validator fails |
+| `kbtool check` | All validators: frontmatter schema + vocab; intra-KB link targets exist (including kb:// syntax shape); index reachability (every content page reachable from `docs/index.md` — kills orphans, F3.4); log append-only (§5.4); boundary checksums (§8); slug-consistency triple (§5.3); Markdown lint via **PyMarkdown** (`pymarkdown` — Python/uv, keeps the toolchain Node-free; tuned config shipped as kbtool package data, rule parity with the GitLab-mined set **[verify-at-impl]**); nav.yml entries and globs resolve to existing files | any validator fails |
 | `kbtool build` | `check` → preprocess (§6.2) → `zensical build -f .build/mkdocs.yml -s` → post-build assertions (search index exists; `_redirects` copied) | any step fails |
 | `kbtool serve` | preprocess → `zensical serve -f .build/mkdocs.yml` (preview serves the preprocessed copy — re-run to pick up source edits) | — |
 | `kbtool push` | `git pull --rebase --autostash` → `git push`, retried ×3 with backoff (D5 rebase-retry) | push still rejected |
 | `kbtool status` | reports last deployment result (§7) + working-tree cleanliness; used by the session-start ritual (§9) | never (informational) |
+| `kbtool playbook <name>` | prints the version-matched procedure shipped as package data (D16): `upgrade`, `ingest`, `lint`, `access-dns-setup` | unknown name |
 | `kbtool ci` | alias of `build`; the single platform-owned entry point (F8.2) used by Workers Builds | — |
 
 ### 6.2 Preprocess step (the D12/D14 keystone)
@@ -313,9 +346,10 @@ deploys (CI) and, when available locally, for `kbtool status` (§7).
    `docs/index.md` likewise links every seeded page — the public
    placeholder and the change log — so the index-reachability validator
    is also green from the first build.)
-5. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
-   theme, markdown extensions incl. Mermaid superfences, strict validation
-   flags, search) + the expanded nav + `site_name`/`site_url` from `kb.yml`,
+5. Generate `.build/mkdocs.yml` = `site-base.yml` (blueprint-owned, shipped
+   as kbtool package data — D15: theme, markdown extensions incl. Mermaid
+   superfences, strict validation flags, search) + the expanded nav +
+   `site_name`/`site_url` from `kb.yml`,
    plus explicit `docs_dir: docs` and `site_dir: site` (both relative to the
    generated file's location, i.e. `.build/docs` and `.build/site`).
    Zensical accepts `-f <path>` **[verified E1 --help]**; that it honors
@@ -372,9 +406,9 @@ a no-PR flow.
 release script that lives in the blueprint repo only (deliberately **not** a
 kbtool command — a KB must not be able to casually regenerate its own
 boundary manifest and whitewash drift) and is shipped in the template.
-It lists sha256 for **static** blueprint-owned files
-(`tools/**`, `schema/**`, `config/site-base.yml`, `pymarkdown.json`,
-`.gitattributes`, `.gitignore`, `CLAUDE.md` — the agent contract is deliberately written
+With D15/D16 most blueprint-owned material lives *inside the wheel*, so the
+checksummed set shrinks to: `vendor/kbtool.whl`, `.gitattributes`,
+`.gitignore`, `CLAUDE.md` (the agent contract is deliberately written
 KB-agnostic so it stays static and checksummable; KB specifics live in
 `CLAUDE-KB.md`). Files whose rendered content varies per KB
 (`wrangler.jsonc`, `pyproject.toml`) instead carry a first-line managed
@@ -417,8 +451,9 @@ once before any Access app can exist).
    to the repo (dashboard; **[docs]** GitHub app flow) with §7 settings;
    first deploy creates the custom domain + DNS record automatically
    (**[docs]** `custom_domain: true`).
-6. Run `playbooks/access-dns-setup.md` (skip 6a–6b entirely when
-   `kb.yml: visibility: public` — §5.5):
+6. Run `uv run kbtool playbook access-dns-setup` (D16; skip 6a–6b entirely
+   when `kb.yml: visibility: public` — §5.5). Every platform-side value set
+   here must match the `platform:` record in `kb.yml` (D17):
    a. Access app "kb-<name>" — domain `kb-<name>.example.com`, policy
       Allow, include: Luca's email; IdP: one-time PIN (default).
    b. Access app "kb-<name>-public" — domain
@@ -440,7 +475,10 @@ once before any Access app can exist).
 
 - Blueprint releases: semver tags. CHANGELOG.md separates breaking /
   non-breaking (REQUIREMENTS §4); entries timestamped `YYYYMMDD HH:MM`.
-- Per-KB upgrade = `playbooks/upgrade-kb.md`:
+- Per-KB upgrade = `uv run kbtool playbook upgrade` (D16 — the *installed*
+  version prints it, so procedure changes arrive one version late; accepted:
+  the procedure is stable, and any special per-release instructions live in
+  the CHANGELOG read in step 1):
   1. Read CHANGELOG between `.copier-answers.yml:_commit` and target tag.
   2. `uvx copier==<pinned> update --vcs-ref v<target>` — copier itself is
      version-pinned in the playbooks (a copier major could change update
@@ -462,35 +500,43 @@ once before any Access app can exist).
 
 On PR + main push (budget: well under D1's 2,000 min/mo — one small job):
 1. Scaffold a fixture KB from the CI checkout (committed `HEAD`, not a dirty
-   tree — copier needs a git ref), **regenerate `blueprint-checksums.json`
-   inside the fixture first** (mid-development checksums are legitimately
-   stale between releases), then run `uv run kbtool ci` — the scaffold must
-   always produce a green KB (F4.5).
+   tree — copier needs a git ref); **rebuild the wheel from `src/kbtool/`
+   into the fixture's `vendor/`** and **regenerate
+   `blueprint-checksums.json` inside the fixture** (mid-development, the
+   template's shipped wheel and checksums legitimately lag `src/`), then run
+   `uv run kbtool ci` — the scaffold must always produce a green KB (F4.5).
 2. Upgrade test: scaffold a second fixture from the **latest release tag**
    (template source = the runner's absolute checkout path — absolute local
    paths work for update, relative ones don't **[verified E2]**), then
    `copier update --vcs-ref <CI HEAD sha>` (a sha is a valid ref; copier
-   updates between any two template refs); assert zero conflicts and green
-   `kbtool ci` — guarantees released upgrades don't break clean KBs.
+   updates between any two template refs), then rebuild the wheel from
+   `src/kbtool/` into the updated fixture (the template's shipped wheel
+   lags `src/` mid-development, same as job 1); assert zero conflicts and
+   green `kbtool ci` — guarantees released upgrades don't break clean KBs.
    **Bootstrap**: skipped (with a visible notice) while no release tag
    exists yet; mandatory from v1.0.0 on.
 3. Release procedure (ordered, breaking the checksum circularity): finalize
-   CHANGELOG entry (timestamped, breaking/non-breaking separated) →
-   regenerate `blueprint-checksums.json` from the template → commit → tag
-   `vX.Y.Z` → push commit + tag. CI on the tag asserts the checksums match
-   the tagged tree and the CHANGELOG has the version's entry.
+   CHANGELOG entry (timestamped, breaking/non-breaking separated) → build
+   the wheel from `src/kbtool/` into `template/vendor/kbtool.whl` and bump
+   the template's pyproject pin → regenerate `blueprint-checksums.json`
+   from the template → commit → tag `vX.Y.Z` → push commit + tag. CI on the
+   tag asserts wheel version == pyproject pin == tag, checksums match the
+   tagged tree, and the CHANGELOG has the version's entry.
 
 KB repos get **no** GitHub Actions in v1 — the deploy gate is Workers Builds
 (D5); forge CI minutes stay unspent.
 
-## 13. Maintenance playbooks (D13, F3.2)
+## 13. Maintenance playbooks (D13, D16, F3.2)
 
-- `maintain-ingest.md`: how agents add knowledge — where pages go, when to
-  create vs extend (defer to CLAUDE-KB.md specifics), always: frontmatter,
-  index.md entry, log.md entry, `kbtool check`, push.
-- `maintain-lint.md` (scheduled agent session, e.g. monthly per KB):
-  structural pass (`kbtool check` + lychee external-link sweep) then semantic
-  pass (contradictions, staleness, orphan-in-spirit pages, missing
+Delivered inside the kbtool package; agents fetch the version-matched
+procedure with `uv run kbtool playbook <name>`:
+
+- `ingest`: how agents add knowledge — where pages go, when to create vs
+  extend (defer to CLAUDE-KB.md specifics), always: frontmatter, index.md
+  entry, log.md entry, `kbtool check`, push.
+- `lint` (scheduled agent session, e.g. monthly per KB): structural pass
+  (`kbtool check` + lychee external-link sweep) then semantic pass
+  (contradictions, staleness, orphan-in-spirit pages, missing
   cross-references — F3.2); findings fixed directly or filed as `status:
   review` pages; session logged in log.md.
 
@@ -571,3 +617,17 @@ produces zero conflicts.
   added to the checksummed set.
 - pass 7 (20260712 12:12): zero findings at any severity — exit. Status
   flipped to reviewed.
+- pass 8 (20260712 12:05, checkpoint 3 amendment): Luca's self-definition
+  principle adversarially validated → D15–D18 recorded in REQUIREMENTS and
+  applied here: kbtool distributed as an in-repo wheel (source only in
+  blueprint `src/kbtool/`); playbooks + site-base.yml + frontmatter schema +
+  lint config become package data (`kbtool playbook <name>`); KB layout
+  loses `tools/`, `config/`, `schema/`, `pymarkdown.json`, gains
+  `vendor/kbtool.whl`; kb.yml gains the `platform:` record (D17); §8
+  checksummed set shrinks accordingly; CI + release build the wheel.
+- pass 9 (20260712 12:10, re-review of the amendment): 3 findings fixed —
+  playbook names unified (`ingest`/`lint` vs old file names); platform-record
+  drift on upgrades handled via CHANGELOG instruction (kb.yml is KB-owned,
+  never silently rewritten); CI upgrade test also rebuilds the wheel
+  post-update (template wheel lags src/ mid-development). Second sweep of
+  the amended sections: zero findings — exit.
