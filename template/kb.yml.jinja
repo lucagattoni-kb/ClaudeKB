@@ -1,7 +1,7 @@
 name: {{ kb_name }}
 title: {{ kb_title }}
 description: {{ kb_description }}
-url: https://kb-{{ kb_name }}.example.com
+url: https://kb-{{ kb_name }}.{{ kb_domain }}
 visibility: private        # private | public — drives the Access playbook.
                            # To flip: edit this field and re-run
                            # `uv run kbtool playbook access-dns-setup`.

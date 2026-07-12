@@ -45,9 +45,8 @@ Start here, in order:
 Going deeper:
 
 - [Architecture spec](docs/architecture.md) — the full design and decision
-  trail (`kbtool`, the ownership boundary, the build pipeline).
-- [Requirements & decision record](REQUIREMENTS.md) — every decision (D1–D18)
-  with rationale.
+  trail (`kbtool`, the ownership boundary, the build pipeline). Decisions are
+  cited as D1–D18 throughout.
 - [Research notes](docs/research/) — the OSS survey and experiments the design
   rests on.
 

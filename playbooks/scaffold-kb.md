@@ -20,7 +20,7 @@ Replace `<name>`, `<title>`, `<desc>`, `<VERSION>` (latest blueprint tag).
 2. Scaffold (copier pinned so update semantics don't shift mid-fleet):
    ```
    uvx copier==9.16.0 copy --vcs-ref v<VERSION> gh:<org>/ClaudeKB kb-<name> \
-     -d kb_name=<name> -d kb_title="<title>" -d kb_description="<desc>"
+     -d kb_domain=<domain> -d kb_name=<name> -d kb_title="<title>" -d kb_description="<desc>"
    cd kb-<name>
    uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
    ```

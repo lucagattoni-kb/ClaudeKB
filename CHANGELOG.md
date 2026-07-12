@@ -7,7 +7,19 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 (nothing yet)
 
-## [0.2.0] - 20260712 17:28
+## [0.3.0] - 20260712 17:47
+
+### Changed (non-breaking for existing KBs; new question for new scaffolds)
+
+- **The hosting domain is now a copier question (`kb_domain`, default
+  `example.com`)** instead of a hard-coded value. `kb.yml` and `wrangler.jsonc`
+  are templated from it, and the runtime already derives the domain from
+  `kb.yml`, so existing KBs are unaffected. Makes the blueprint reusable by
+  anyone, not welded to one domain. Pass `-d kb_domain=<your-domain>` at
+  scaffold (stored per-KB, remembered on upgrade).
+- Genericized the docs, playbooks, tests, and spec (placeholder domain, no
+  personal names) in preparation for publishing the blueprint as an open
+  repository. The full private decision record moved out of the tracked tree.
 
 ### Added (non-breaking)
 

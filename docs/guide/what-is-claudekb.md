@@ -78,8 +78,8 @@ ClaudeKB is a synthesis of prior art, not an invention from scratch:
   layer added later).
 
 The full survey, with per-project analysis and the experiments that validated
-the choices, is in [docs/research/](../research/). The complete design is in the
-[architecture spec](../architecture.md); every decision is recorded in
-[REQUIREMENTS.md](../../REQUIREMENTS.md).
+the choices, is in [docs/research/](../research/). The complete design, with
+every decision (cited as D1–D18), is in the
+[architecture spec](../architecture.md).
 
 Next: [Install & prerequisites](install.md).

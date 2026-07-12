@@ -1,7 +1,8 @@
 # Roadmap
 
 Where the project stands and what's next. This is a living document; the
-authoritative decision record is [REQUIREMENTS.md](../../REQUIREMENTS.md).
+design and its decisions (D1–D18) are recorded in the
+[architecture spec](../architecture.md).
 
 ## Done
 

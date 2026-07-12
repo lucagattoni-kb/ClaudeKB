@@ -13,7 +13,7 @@ hyphens), and `<org>` with your fleet's GitHub org.
 ```bash
 gh repo create <org>/kb-<name> --private
 uvx copier@9.16.0 copy --vcs-ref v0.1.1 gh:<org>/ClaudeKB kb-<name> \
-  -d kb_name=<name> -d kb_title="<Title>" -d kb_description="<one sentence>"
+  -d kb_domain=<domain> -d kb_name=<name> -d kb_title="<Title>" -d kb_description="<one sentence>"
 cd kb-<name>
 uv lock && git init -b main && git add -A && git commit -m "scaffold kb-<name>"
 ```

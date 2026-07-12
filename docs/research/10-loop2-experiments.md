@@ -26,7 +26,7 @@ reasons: the `kb://` resolver (D12) runs as our own preprocessor before the
 SSG; extending it to also rewrite root-absolute → relative makes the *content*
 build correctly on **any** SSG (doctrine F1.3/F1.4 made concrete). With that
 step in the pipeline, the SSG choice stops being gated on link handling.
-→ Decision for Luca at checkpoint 2 (see §5 below).
+→ Decision for the maintainer at checkpoint 2 (see §5 below).
 
 ## E2 — copier update-conflict behavior (F4.3, gates D10)
 
@@ -88,7 +88,7 @@ append-only validator + self-contained entry blocks).
 | One Access app covers `kb-*.example.com` via wildcard | **Still unverified** — but demoted from blocker to convenience: multi-domain single app and templated per-KB apps (Terraform/API examples in docs) are both confirmed patterns. Resolve during live setup. |
 
 Live-zone verification (real Access apps against a deployed toy Worker)
-remains queued — needs Luca's Cloudflare auth; do during architecture phase.
+remains queued — needs the maintainer's Cloudflare auth; do during architecture phase.
 
 ## 5. Checkpoint 2 input — the SSG decision
 
@@ -104,4 +104,4 @@ SSG-independent:
   first blueprint upgrade is also the riskiest kind (SSG swap).
 
 Recommendation (adversarially argued in session): **Zensical, version-pinned,
-with pinned Material as the documented fallback** — but this is Luca's call.
+with pinned Material as the documented fallback** — but this is the maintainer's call.

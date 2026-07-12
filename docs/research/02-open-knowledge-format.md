@@ -62,7 +62,7 @@ openknowledge-sh/openknowledge) and curated lists.
 
 ## Adopt / adapt / avoid
 
-- **Adopt**: required `type` field (pending Luca's decision — changes D6);
+- **Adopt**: required `type` field (pending the maintainer's decision — changes D6);
   `index.md`/`log.md` reservations; bundle-root-absolute link convention.
 - **Adapt**: strict-producer/permissive-consumer split (F2.2); build-time
   `timestamp` injection (F2.4).

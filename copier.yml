@@ -14,9 +14,18 @@ _message_after_copy: |
     uv lock && git init -b main && git add -A && git commit -m "scaffold"
     uv run kbtool check && uv run kbtool build
 
+kb_domain:
+  type: str
+  help: "Root domain the fleet is hosted on — KBs live at kb-<slug>.<domain>"
+  default: example.com
+  validator: >-
+    {% if not (kb_domain | regex_search('^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$')) %}
+    Must be a valid domain name, e.g. example.com
+    {% endif %}
+
 kb_name:
   type: str
-  help: "Slug — becomes repo kb-<slug>, worker kb-<slug>, host kb-<slug>.example.com"
+  help: "Slug — becomes repo kb-<slug>, worker kb-<slug>, host kb-<slug>.<domain>"
   validator: >-
     {% if not (kb_name | regex_search('^[a-z0-9][a-z0-9-]{1,30}$')) %}
     Must be 2-31 chars, lowercase letters/digits/hyphens, not starting with a hyphen.

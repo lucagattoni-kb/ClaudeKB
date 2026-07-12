@@ -1,7 +1,7 @@
 # Research synthesis — KB-as-code OSS landscape → ClaudeKB plan impacts
 
 > Loop 1 synthesis, 20260712. Inputs: docs 01–09 in this directory. Findings
-> are cited as F<doc>.<n>. Everything here is proposal until Luca decides at
+> are cited as F<doc>.<n>. Everything here is proposal until the maintainer decides at
 > the checkpoint (§5).
 
 ## 1. Method & survey disposition
@@ -93,7 +93,7 @@ Access/DNS setup playbook, maintenance playbooks (ingest/lint), migrations/
 directory, and blueprint CI that scaffolds+upgrades a fixture KB on every
 release. KB #1 scaffolds greenfield after C1–C4 land.
 
-## 5. Checkpoint — decisions for Luca
+## 5. Checkpoint — decisions for the maintainer
 
 - **C1 (SSG)**: pinned MkDocs Material with planned Zensical migration vs
   Zensical now vs decide-after-hands-on-test (both candidates on a toy KB).

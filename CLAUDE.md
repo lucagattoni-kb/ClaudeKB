@@ -3,13 +3,14 @@
 **Blueprint repository** for a fleet of 10+ independent, content-agnostic,
 docs-as-code knowledge bases — one repo per KB, AI agents as primary
 readers/writers via direct git commits. This repo is **not** a KB: it scaffolds
-new self-sufficient KB repos and upgrades existing ones (REQUIREMENTS.md §4).
+new self-sufficient KB repos and upgrades existing ones.
 
 ## Canonical context
 
-Read `docs/architecture.md` (the implementation spec) and `REQUIREMENTS.md`
-(decisions D1–D18) before any structural change. Do not re-litigate settled
-decisions; surface, don't silently resolve, anything genuinely open.
+Read `docs/architecture.md` (the implementation spec, with decisions D1–D18)
+before any structural change. The full decision record with rationale is kept
+privately at `docs/private/REQUIREMENTS.md` (gitignored). Do not re-litigate
+settled decisions; surface, don't silently resolve, anything genuinely open.
 
 ## Working principles
 

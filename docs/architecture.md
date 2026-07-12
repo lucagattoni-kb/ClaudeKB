@@ -19,7 +19,8 @@ cleanly. Root-absolute links rewrite to the **final URL path**. PyMarkdown
 convention). Zensical `docs_dir`/`site_dir` overrides and frontmatter-less
 home rendering: confirmed working.
 
-> Implements the decision record `REQUIREMENTS.md` D1–D18 using research
+> Implements design decisions D1–D18 (the full decision record is maintained
+> privately by the maintainer) using research
 > findings `docs/research/` (cited F<doc>.<n>) and loop-2 experiment results
 > (E1–E4, `docs/research/10-loop2-experiments.md`). Every load-bearing claim
 > below is tagged **[verified]** (observed/confirmed this project),
@@ -495,7 +496,7 @@ once before any Access app can exist).
    when `kb.yml: visibility: public` — §5.5). Every platform-side value set
    here must match the `platform:` record in `kb.yml` (D17):
    a. Access app "kb-<name>" — domain `kb-<name>.example.com`, policy
-      Allow, include: Luca's email; IdP: one-time PIN (default).
+      Allow, include: the maintainer's email; IdP: one-time PIN (default).
    b. Access app "kb-<name>-public" — domain
       `kb-<name>.example.com/public`, policy **Bypass**, include:
       Everyone. **[verified live on KB #1 20260712: path app takes
@@ -662,7 +663,7 @@ produces zero conflicts.
   added to the checksummed set.
 - pass 7 (20260712 12:12): zero findings at any severity — exit. Status
   flipped to reviewed.
-- pass 8 (20260712 12:05, checkpoint 3 amendment): Luca's self-definition
+- pass 8 (20260712 12:05, checkpoint 3 amendment): the maintainer's self-definition
   principle adversarially validated → D15–D18 recorded in REQUIREMENTS and
   applied here: kbtool distributed as an in-repo wheel (source only in
   blueprint `src/kbtool/`); playbooks + site-base.yml + frontmatter schema +
