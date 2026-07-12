@@ -181,7 +181,9 @@ name: <kb_name>            # slug; must match repo/Worker/hostname suffix
 title: <kb_title>
 description: <kb_description>
 url: https://kb-<kb_name>.example.com
-visibility: private        # private | public — drives Access playbook
+visibility: private        # private | public — drives Access playbook.
+                           # Seeded private; to flip, edit this field and
+                           # re-run playbooks/access-dns-setup.md (§5.5).
 ```
 
 `kbtool check` asserts internal consistency of the triple {`kb.yml:name`,
@@ -305,7 +307,10 @@ deploys (CI) and, when available locally, for `kbtool status` (§7).
    ```
 
    (New top-level sections are the KB's to add; the seed covers every
-   seeded page so scaffold step §10.4 is green out of the box.)
+   seeded page so scaffold step §10.4 is green out of the box. The seeded
+   `docs/index.md` likewise links every seeded page — the public
+   placeholder and the change log — so the index-reachability validator
+   is also green from the first build.)
 5. Generate `.build/mkdocs.yml` = `config/site-base.yml` (blueprint-owned:
    theme, markdown extensions incl. Mermaid superfences, strict validation
    flags, search) + the expanded nav + `site_name`/`site_url` from `kb.yml`,
@@ -361,8 +366,10 @@ a no-PR flow.
 
 ## 8. Ownership boundary enforcement
 
-`blueprint-checksums.json` is generated at blueprint release time and shipped
-in the template. It lists sha256 for **static** blueprint-owned files
+`blueprint-checksums.json` is generated at blueprint release time by a
+release script that lives in the blueprint repo only (deliberately **not** a
+kbtool command — a KB must not be able to casually regenerate its own
+boundary manifest and whitewash drift) and is shipped in the template. It lists sha256 for **static** blueprint-owned files
 (`tools/**`, `schema/**`, `config/site-base.yml`, `pymarkdown.json`,
 `.gitattributes`, `CLAUDE.md` — the agent contract is deliberately written
 KB-agnostic so it stays static and checksummable; KB specifics live in
@@ -397,8 +404,8 @@ complete Cloudflare Zero Trust onboarding (pick the team name — required
 once before any Access app can exist).
 
 1. `gh repo create <org>/kb-<name> --private` (org per D1).
-2. `uvx copier copy --vcs-ref v<X.Y.Z> gh:<org>/ClaudeKB kb-<name>` —
-   answers: slug, title, description.
+2. `uvx copier==<pinned> copy --vcs-ref v<X.Y.Z> gh:<org>/ClaudeKB
+   kb-<name>` — answers: slug, title, description (same copier pin as §11.2).
 3. Copier post-tasks: `uv lock` (creates `uv.lock`), `git init -b main` +
    initial commit.
 4. `uv run kbtool check && uv run kbtool build` locally — must pass before
@@ -547,3 +554,8 @@ produces zero conflicts.
   flag + staleness note; Access playbook branches on visibility; glob sort
   defined (title, H1 fallback); tests/ dir comment; §15 log-risk row aligned
   with §5.4 residual.
+- pass 4 (20260712 12:01): 2 MEDIUM, 2 LOW — all fixed. M: seeded index.md
+  must link all seeded pages (reachability green on first build); checksum
+  regeneration confined to a blueprint-side release script, not kbtool
+  (whitewash prevention). L: copier pin applied to scaffold step too;
+  visibility flip procedure noted in kb.yml.
