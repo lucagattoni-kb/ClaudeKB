@@ -49,6 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("ci", help="alias of build; the Workers Builds entry point")
     sub.add_parser("push", help="rebase-retry push (D5)")
     sub.add_parser("status", help="report deploy result + working-tree state")
+    sub.add_parser("verify-access", help="probe the live site anonymously; assert it matches kb.yml")
     pb = sub.add_parser("playbook", help="print a version-matched procedure")
     pb.add_argument("name", choices=PLAYBOOKS)
 
@@ -78,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "status":
             from .vcs import status
             return status(root)
+        if args.cmd == "verify-access":
+            from .verify import verify_access
+            return verify_access(root)
     except KbError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2

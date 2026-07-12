@@ -70,4 +70,6 @@ guidance lives in `@CLAUDE-KB.md`.
 - `uv run kbtool serve` — local preview.
 - `uv run kbtool push` — rebase-retry push.
 - `uv run kbtool status` — deploy result + working-tree state.
+- `uv run kbtool verify-access` — probe the live site anonymously; assert it
+  matches `kb.yml` (run after any Access/visibility change).
 - `uv run kbtool playbook <ingest|lint|upgrade|access-dns-setup>` — procedures.

@@ -79,6 +79,7 @@ Never edit earlier entries — `kbtool check` rejects a non-append-only log.
 | `uv run kbtool serve` | Local live preview |
 | `uv run kbtool push` | Rebase-retry push (safe under parallel writes) |
 | `uv run kbtool status` | Last deploy result + working-tree state |
+| `uv run kbtool verify-access` | Probe the live site anonymously; assert it matches `kb.yml` |
 | `uv run kbtool playbook <ingest\|lint\|upgrade\|access-dns-setup>` | Print a procedure |
 
 ## Maintenance

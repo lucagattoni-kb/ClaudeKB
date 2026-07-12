@@ -336,6 +336,7 @@ deploys (CI) and, when available locally, for `kbtool status` (§7).
 | `kbtool serve` | preprocess → `zensical serve -f .build/mkdocs.yml` (preview serves the preprocessed copy — re-run to pick up source edits) | — |
 | `kbtool push` | `git pull --rebase --autostash` → `git push`, retried ×3 with backoff (D5 rebase-retry) | push still rejected |
 | `kbtool status` | reports last deployment result (§7) + working-tree cleanliness; used by the session-start ritual (§9) | never (informational) |
+| `kbtool verify-access` | probes the live site anonymously (stdlib, no credentials) and asserts behaviour matches `kb.yml` (`visibility` + `platform.access_apps`) — automates the §10.6c checklist (D17) | any probe mismatches |
 | `kbtool playbook <name>` | prints the version-matched procedure shipped as package data (D16): `upgrade`, `ingest`, `lint`, `access-dns-setup` | unknown name |
 | `kbtool ci` | alias of `build`; the single platform-owned entry point (F8.2) used by Workers Builds | — |
 
@@ -510,7 +511,8 @@ once before any Access app can exist).
       pages render styled); `workers.dev` → not resolvable ✓ (workers_dev
       false); `/search.json` → login ✓ (private index, no content leak).
       Record results in `docs/research/`; if wildcard app consolidation is
-      preferred, test `kb-*.example.com` as one app.
+      preferred, test `kb-*.example.com` as one app. As of v0.2.0 the
+      checklist is automated: `kbtool verify-access` (§6.1).
 7. Append scaffold entry to KB's `log.md`; register nothing centrally —
    the fleet is discoverable via `kb.yml` in each repo (F8.1).
 

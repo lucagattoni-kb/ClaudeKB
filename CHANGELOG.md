@@ -7,6 +7,21 @@ Semantic Versioning. Entries timestamped `YYYYMMDD HH:MM` (local).
 
 (nothing yet)
 
+## [0.2.0] - 20260712 17:28
+
+### Added (non-breaking)
+
+- **`kbtool verify-access`** — no-credential live verification of the access
+  configuration. Probes the deployed site anonymously (stdlib urllib,
+  redirects not followed) and asserts the behaviour matches the KB's `kb.yml`:
+  `visibility` drives whether `/` must be gated or open; `/search.json` must
+  stay gated on private KBs; every `platform.access_apps` bypass path must
+  return 200; a real theme asset (discovered by scraping an open page) must
+  load so public pages render styled. Exit 0 = the live config matches the
+  repo record (D17: repo is the source of truth, dashboard is a cache).
+- The access playbook, scaffold guide, template CLAUDE.md, and spec now point
+  to `verify-access` instead of the manual curl checklist.
+
 ## [0.1.2] - 20260712 17:12
 
 From a critical adversarial retrospective over the whole project after KB #1

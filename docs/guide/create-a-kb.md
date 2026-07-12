@@ -69,17 +69,15 @@ is fully public (`kb.yml: visibility: public`), skip all three apps.
 Skip step 4 entirely if you didn't add public content and don't mind the whole
 KB requiring login — but note the defaults assume the apps exist.
 
-## 5. Verify (the launch checklist)
-
-From anywhere, unauthenticated:
+## 5. Verify (automated)
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" https://kb-<name>.<domain>/           # → 302 (login)
-curl -s -o /dev/null -w "%{http_code}\n" https://kb-<name>.<domain>/public/    # → 200
-curl -s -o /dev/null -w "%{http_code}\n" https://kb-<name>.<domain>/search.json # → 302 (private index)
+uv run kbtool verify-access
 ```
 
-Private pages redirect to login; the public section is open; the search index
-stays private. That's a correctly-configured KB.
+It probes the live site anonymously and asserts the behaviour matches your
+`kb.yml`: private pages redirect to login, the public section and theme assets
+are open, and the search index stays private. Exit 0 means the live Access
+config matches the repo's record — a correctly-configured KB.
 
 Next: [Using a KB](using-a-kb.md).

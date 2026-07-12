@@ -4,9 +4,8 @@ Prerequisite: Cloudflare Zero Trust onboarding is done once for the account
 (team name chosen). Every value set here must match the `platform:` record in
 `kb.yml` (D17) — the repo is the source of truth, the dashboard is a cache.
 
-**If `kb.yml: visibility: public`, skip steps 1–2 entirely** (no Access apps);
-go straight to the verification checklist and confirm `/` returns 200 without
-a login.
+**If `kb.yml: visibility: public`, skip steps 1–3 entirely** (no Access apps);
+run `uv run kbtool verify-access` to confirm `/` returns 200 without a login.
 
 1. **Private app** — Cloudflare dashboard → Zero Trust → Access →
    Applications → Add (self-hosted):
@@ -28,18 +27,22 @@ a login.
      `/media/`, which stays private). The search index (`/search.json`) and
      sitemap stay private, so no KB content leaks.
 
-## Verification checklist (LIVE — do on the first KB, records resolve E4)
+## Verification (automated)
 
-Run each probe and record the result in the blueprint's `docs/research/`:
+```
+uv run kbtool verify-access
+```
 
-- [ ] Anonymous GET `https://kb-<name>.example.com/` → Access login page.
-- [ ] Anonymous GET `…/public/…` → 200 (bypass wins over the hostname app).
-- [ ] Anonymous GET `…/assets/stylesheets/...css` → 200 (public page renders
-      styled).
-- [ ] `https://kb-<name>.<account>.workers.dev` → blocked / 404
-      (workers.dev disabled — else Access can be bypassed).
-- [ ] Anonymous GET the search index URL (`/search.json`) → login (private
-      index confirmed — must NOT be 200).
+Probes the live site anonymously and asserts behaviour matches this KB's
+`kb.yml` (`visibility` + `platform.access_apps`): private paths and the search
+index must redirect to Access login; each bypass path must return 200; a real
+theme asset must load (so public pages render styled). Exit 0 = the live
+config matches the repo record. On FAIL, fix the dashboard per the steps
+above, or correct `kb.yml` if the record itself is wrong.
+
+One probe it does not make: `https://kb-<name>.<account>.workers.dev` should
+not resolve (workers.dev is disabled in wrangler.jsonc; verified account-wide
+on KB #1 — re-check manually only if wrangler config changes).
 
 If you prefer one wildcard Access app for `kb-*.example.com` instead of
 per-KB apps, test that here and record the outcome.

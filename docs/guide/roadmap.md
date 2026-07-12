@@ -10,20 +10,16 @@ authoritative decision record is [REQUIREMENTS.md](../../REQUIREMENTS.md).
 - **KB #1 (`kb-sandbox`) live** — scaffolded, gated, deployed to Cloudflare
   Workers, private-by-default behind Cloudflare Access with a working public
   subsection. Every deferred infra assumption (E4) resolved on the live site.
-- **First fleet upgrade** — `kb-sandbox` upgraded v0.1.0 → v0.1.1 with zero
-  conflicts.
+- **First fleet upgrades** — `kb-sandbox` upgraded v0.1.0 → v0.1.1 → v0.1.2
+  → v0.2.0, all zero-conflict.
+- **`kbtool verify-access`** (v0.2.0) — the launch checklist as a no-credential
+  command: anonymous probes asserted against the `kb.yml` record.
 
 ## Next (near-term)
 
-1. **`kbtool verify-access` (no-token, high value).** Turn the manual launch
-   checklist into a command: run the anonymous probes (`/`, `/public/`,
-   `/assets/`, `/search.json`) and assert the live behaviour matches the
-   `kb.yml` `platform:` record and `visibility`. Automates the D17 "dashboard is
-   a cache, repo is the source of truth — verify they match" check, with **zero
-   credentials**. Recommended first increment.
-2. **Second real KB.** Exercise scaffold + Access on a KB you'll actually keep;
+1. **Second real KB.** Exercise scaffold + Access on a KB you'll actually keep;
    confirm the per-KB dashboard steps are as quick as expected at n=2.
-3. **Docs polish / MkDocs preview** of this guide (dogfood the SSG on the
+2. **Docs polish / MkDocs preview** of this guide (dogfood the SSG on the
    blueprint's own docs).
 
 ## Deferred (deliberate)

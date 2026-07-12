@@ -7,7 +7,40 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from kbtool import links, nav, preprocess  # noqa: E402
+from kbtool import links, nav, preprocess, verify  # noqa: E402
+
+
+def test_derive_probes_private_with_bypasses():
+    kb = {
+        "visibility": "private",
+        "platform": {"access_apps": [
+            {"name": "kb-x", "policy": "allow-owner"},
+            {"name": "kb-x-public", "policy": "bypass-everyone", "path": "/public"},
+            {"name": "kb-x-assets", "policy": "bypass-everyone", "path": "/assets"},
+        ]},
+    }
+    probes = verify.derive_probes(kb)
+    by_path = {p.path: p.expect for p in probes}
+    assert by_path["/"] == "gated"
+    assert by_path["/search.json"] == "gated"
+    assert by_path["/public/"] == "open"
+    assert by_path[verify.ASSET_TOKEN] == "open"
+
+
+def test_derive_probes_public_kb():
+    probes = verify.derive_probes({"visibility": "public"})
+    assert probes == [verify.Probe("/", "open", "visibility: public")]
+
+
+@pytest.mark.parametrize("status,headers,expected", [
+    (200, {}, "open"),
+    (302, {"Location": "https://team.cloudflareaccess.com/cdn-cgi/access/login/x"}, "gated"),
+    (302, {"Location": "https://elsewhere.example/"}, "other:302"),
+    (403, {}, "gated"),
+    (404, {}, "other:404"),
+])
+def test_classify(status, headers, expected):
+    assert verify.classify(status, headers) == expected
 
 
 @pytest.mark.parametrize("text,expected", [
